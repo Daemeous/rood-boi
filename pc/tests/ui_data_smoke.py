@@ -611,7 +611,7 @@ def run(cards, out, cases, check, shots):
             # (MAINMENU's row list statics and information box, the chooser's sounds and the sound
             # engine's channels and random state, MENU7's drawing in VRAM). Reported, not checked; the
             # blocks the load writes are (above). LA.snap / LB.snap: pc/tests/snapshot_diff.py.
-            for k in ("ram", "heap", "vram"):
+            for k in ("heap", "vram"):
                 print(f"info: 5: snapshot hash {k} after the jump: "
                       f"{'equal' if hashes['LA'][k] == hashes['LB'][k] else 'differs (the menu paths)'}")
 

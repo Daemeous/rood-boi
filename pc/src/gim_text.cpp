@@ -13,6 +13,7 @@
 // The look is settings (project_settings.cpp), RPC graphics keys and the Graphics panel's 2D / UI section: gim_text (0 off), gim_text_size (the words' width
 // against the line's box), gim_text_gradient (0 the fill's average colour, 1 as it is), gim_text_caps (a small capital's height against a capital's, about 0.8;
 // 0 no small capitals), gim_text_fill; the font, weight and spacing are the pictures style of ui_text (ui_text_pictures_*).
+#include "draw_items.h"
 #include "ui_text.h"
 #include <algorithm>
 #include <cctype>
@@ -30,7 +31,7 @@ extern "C" {
 unsigned pc_vsync_count(void);
 
 int pc_gim_text = 1;
-float pc_gim_text_size = 1.0f, pc_gim_text_gradient = 1.0f, pc_gim_text_caps = 0.80f;
+float pc_gim_text_size = 1.0f, pc_gim_text_gradient = 1.0f, pc_gim_text_caps = 0.80f, pc_gim_text_glow = 1.0f;
 char pc_gim_text_fill[1024] = ""; // the global fill: `[STEM-or-glob=]fill; ...` (see choose_fill)
 int pc_gim_text_fill_force = 0; // 1: the global fill wins over the pack's
 unsigned pc_gim_text_drawn; // lines drawn as carriers (RPC gim_text: tests)
@@ -62,6 +63,11 @@ struct Fill {
     float angle = 0.0f;
     float strength = 1.0f;
     std::vector<std::pair<float, unsigned>> stops;
+    unsigned glow_colour = 0;
+    float glow_radius = 0.0f, glow_strength = 1.0f; // the halo behind the words (glow_radius 0: none)
+    std::string font;                               // the words' own font file (empty: the pictures style's), with its stretch and weight (ems)
+    float font_stretch = 0.0f, font_embolden = 0.0f;
+    bool font_embolden_set = false;
 };
 struct Pack {
     std::map<int, std::vector<Line>> images;
@@ -79,7 +85,8 @@ std::string pack_dir()
     return e && *e ? e : "pc/user/gim_text";
 }
 
-// `type [angle=N] [scope=block|line] [strength=X] [measured] | pos:rrggbb ...` (a flat fill's stops may be a lone rrggbb).
+// `type [angle=N] [scope=block|line] [strength=X] [glow=rrggbb [glow_radius=PS1px] [glow_strength=X]] [font=FILE [font_stretch=X] [font_embolden=EM]] [measured] | pos:rrggbb ...` (a flat fill's stops may be a
+// lone rrggbb).
 Fill parse_fill(const std::string& s)
 {
     Fill f;
@@ -100,6 +107,21 @@ Fill parse_fill(const std::string& s)
             f.strength = (float)atof(v);
         else if (key == "scope")
             f.per_line = !strncmp(v, "line", 4);
+        else if (key == "glow")
+            f.glow_colour = (unsigned)strtoul(v, nullptr, 16) & 0xffffff, f.glow_radius = f.glow_radius > 0.0f ? f.glow_radius : 4.0f;
+        else if (key == "glow_radius")
+            f.glow_radius = std::fmax((float)atof(v), 0.0f);
+        else if (key == "glow_strength")
+            f.glow_strength = std::fmax((float)atof(v), 0.0f);
+        else if (key == "font") {
+            const char* e = v;
+            while (*e && *e != ' ')
+                ++e;
+            f.font.assign(v, (size_t)(e - v));
+        } else if (key == "font_stretch")
+            f.font_stretch = std::fmax((float)atof(v), 0.0f);
+        else if (key == "font_embolden")
+            f.font_embolden = (float)atof(v), f.font_embolden_set = true;
         ++at;
     }
     const char* c = tail.c_str();
@@ -298,6 +320,84 @@ void make_line(const Line& l, const Mapping& m, const Fill& fill, const float bl
     for (int i = 0; i < out->nstops; i++)
         out->pos[i] = fill.stops[(size_t)i].first, out->colour[i] = fill.stops[(size_t)i].second;
     memcpy(out->block, block, sizeof out->block);
+    out->glow_colour = fill.glow_colour;
+    out->glow_radius = fill.glow_radius * m.k;
+    out->glow_strength = fill.glow_strength * std::fmax(pc_gim_text_glow, 0.0f);
+    snprintf(out->font, sizeof out->font, "%s", fill.font.c_str());
+    out->stretch = fill.font_stretch, out->embolden = fill.font_embolden, out->embolden_set = fill.font_embolden_set;
+}
+
+// One carrier per piece of a line (a wide one is set as pieces: an image is at most 255 texels across) and, in a scanline wipe (`left`, `right`), per slice of equal
+// visible span: `place(xy, part, col0, col1, row0, row1)` makes the carrier item at `xy` (the image's top-left) and registers `part` with it.
+template <class Place>
+void emit_job(const pc_ui_picture_line& job, const short* left, const short* right, Place place)
+{
+    float fx, fy;
+    int fw, fh;
+    if (!pc_ui_text_picture_extent(&job, &fx, &fy, &fw, &fh))
+        return;
+    int pieces = (fw + 239) / 240;
+    for (int piece = 0; piece < pieces; piece++) {
+        pc_ui_picture_line part = job;
+        if (pieces > 1)
+            part.clip[0] = fx + (float)(fw * piece / pieces), part.clip[1] = fx + (float)(fw * (piece + 1) / pieces);
+        float ix, iy;
+        int iw, ih;
+        if (!pc_ui_text_picture_extent(&part, &ix, &iy, &iw, &ih))
+            continue;
+        int xy = ((int)ix & 0xffff) | (int)iy << 16;
+        if (!left) {
+            place(xy, part, 0, 0, 0, 0);
+            continue;
+        }
+        int row = 0;
+        while (row < ih) {
+            int y = (int)iy + row;
+            auto span = [&](int yy, int* c0, int* c1) {
+                *c0 = 0, *c1 = 0;
+                if (yy < 0 || yy >= 240)
+                    return;
+                *c0 = std::max(0, (int)left[yy] - (int)ix), *c1 = std::min(iw, (int)right[yy] - (int)ix);
+            };
+            int c0, c1, d0, d1, end = row + 1;
+            span(y, &c0, &c1);
+            for (; end < ih; end++) {
+                span((int)iy + end, &d0, &d1);
+                if (d0 != c0 || d1 != c1)
+                    break;
+            }
+            if (c1 > c0)
+                place(xy, part, c0, c1, row, end);
+            row = end;
+        }
+    }
+}
+
+// The halos of all the lines and the words of all of them, as `emit` takes each, in the order they are made: the halos first when `halos_first` (what is made first is
+// drawn first: items drawn at once), else the words first (an ordering table draws what was put in a place last first: the halos below the words).
+template <class Emit>
+void emit_lines(const std::vector<Line>& lines, const Mapping& m, const Fill& fill, bool halos_first, Emit emit)
+{
+    float block[4] = { 1e9f, 1e9f, -1e9f, -1e9f };
+    for (const Line& l : lines) {
+        block[0] = std::fmin(block[0], m.left0 + (float)l.box[0] * m.k), block[1] = std::fmin(block[1], m.top0 + (float)l.box[1] * m.k);
+        block[2] = std::fmax(block[2], m.left0 + (float)l.box[2] * m.k), block[3] = std::fmax(block[3], m.top0 + (float)l.box[3] * m.k);
+    }
+    std::vector<pc_ui_picture_line> jobs;
+    for (const Line& l : lines) {
+        pc_ui_picture_line job;
+        make_line(l, m, fill, block, &job);
+        jobs.push_back(job);
+    }
+    for (int pass = 0; pass < 2; pass++)
+        for (pc_ui_picture_line job : jobs) {
+            bool halo = pass == (halos_first ? 0 : 1);
+            if (halo && !(job.glow_radius > 0.0f && job.glow_strength > 0.0f))
+                continue;
+            job.glow_pass = halo;
+            emit(job);
+            pc_gim_text_drawn += !halo;
+        }
 }
 
 } // namespace
@@ -355,57 +455,65 @@ extern "C" void pc_gim_text_carry(int id, int layer, int columns, int rows, int 
     if (!fill.valid)
         fill.stops = { { 0.0f, 0xFFFFFF } }, fill.valid = true;
     Mapping m = left ? Mapping{ 0.0f, 0.0f, 1.0f } : mapping(columns, rows, scale, ox, oy); // (the wipe draws the whole 320 x 240 picture at the origin)
-    float block[4] = { 1e9f, 1e9f, -1e9f, -1e9f };
-    for (const Line& l : lines) {
-        block[0] = std::fmin(block[0], m.left0 + (float)l.box[0] * m.k), block[1] = std::fmin(block[1], m.top0 + (float)l.box[1] * m.k);
-        block[2] = std::fmax(block[2], m.left0 + (float)l.box[2] * m.k), block[3] = std::fmax(block[3], m.top0 + (float)l.box[3] * m.k);
+    int uvclut = PC_PICTURE_U | PC_PICTURE_V << 8 | PC_PICTURE_CLUT << 16;
+    emit_lines(lines, m, fill, false, [&](const pc_ui_picture_line& job) {
+        emit_job(job, left, right, [&](int xy, const pc_ui_picture_line& part, int c0, int c1, int r0, int r1) {
+            int item = vs_battle_spriteItem(ot, brightness, xy, 0x10001, 0, uvclut);
+            pc_ui_text_picture_add(vs_battle_spriteCommand(item), &part, c0, c1, r0, r1);
+        });
+    });
+}
+
+// The loading screen (gitea #23): "NOW LOADING" is a picture in the executable (126 x 20 texels at the centre of the 320 x 224 screen), uploaded into the frame
+// buffers with LoadImage; no ordering table, no packet. With the pack NOWLOADING (pc/tools/gim_text_pack.py: measured from the executable's image) and the modern
+// fonts on, _displayLoadingScreen leaves the upload out and draws the pack's lines as carriers drawn at once (DrawPrim), as the picture's own pixels would be
+// shown: the picture's mapping is its place on the screen, and the 4:3 and 16:9 views differ only in the view's transform, as for every picture.
+namespace {
+bool loading_lines(std::vector<Line>* lines, Fill* fill)
+{
+    if (!enabled())
+        return false;
+    std::lock_guard<std::mutex> hold(lock);
+    const Pack* p = pack_of("NOWLOADING");
+    auto it = p->images.find(0);
+    if (it == p->images.end())
+        return false;
+    if (lines)
+        *lines = it->second;
+    if (fill) {
+        auto fi = p->fills.find(0);
+        *fill = choose_fill("NOWLOADING", fi == p->fills.end() ? nullptr : &fi->second);
+        if (!fill->valid)
+            fill->stops = { { 0.0f, 0xFFFFFF } }, fill->valid = true;
     }
-    for (const Line& l : lines) {
-        pc_ui_picture_line job;
-        make_line(l, m, fill, block, &job);
-        float fx, fy;
-        int fw, fh;
-        if (!pc_ui_text_picture_extent(&job, &fx, &fy, &fw, &fh))
-            continue;
-        int pieces = (fw + 239) / 240; // (an image is at most 255 texels across: a wide line is set as pieces)
-        for (int piece = 0; piece < pieces; piece++) {
-            pc_ui_picture_line part = job;
-            if (pieces > 1)
-                part.clip[0] = fx + (float)(fw * piece / pieces), part.clip[1] = fx + (float)(fw * (piece + 1) / pieces);
-            float ix, iy;
-            int iw, ih;
-            if (!pc_ui_text_picture_extent(&part, &ix, &iy, &iw, &ih))
-                continue;
-            int xy = ((int)ix & 0xffff) | (int)iy << 16;
-            int uvclut = PC_PICTURE_U | PC_PICTURE_V << 8 | PC_PICTURE_CLUT << 16;
-            if (!left) {
-                int item = vs_battle_spriteItem(ot, brightness, xy, 0x10001, 0, uvclut);
-                pc_ui_text_picture_add(vs_battle_spriteCommand(item), &part, 0, 0, 0, 0);
-                continue;
-            }
-            int row = 0;
-            while (row < ih) {
-                int y = (int)iy + row;
-                auto span = [&](int yy, int* c0, int* c1) {
-                    *c0 = 0, *c1 = 0;
-                    if (yy < 0 || yy >= 240)
-                        return;
-                    *c0 = std::max(0, (int)left[yy] - (int)ix), *c1 = std::min(iw, (int)right[yy] - (int)ix);
-                };
-                int c0, c1, d0, d1, end = row + 1;
-                span(y, &c0, &c1);
-                for (; end < ih; end++) {
-                    span((int)iy + end, &d0, &d1);
-                    if (d0 != c0 || d1 != c1)
-                        break;
-                }
-                if (c1 > c0) {
-                    int item = vs_battle_spriteItem(ot, brightness, xy, 0x10001, 0, uvclut);
-                    pc_ui_text_picture_add(vs_battle_spriteCommand(item), &part, c0, c1, row, end);
-                }
-                row = end;
-            }
-        }
-        ++pc_gim_text_drawn;
-    }
+    return true;
+}
+} // namespace
+
+// 1: the loading screen's words are drawn as text (the upload of the picture is left out).
+extern "C" int pc_gim_text_loading(void) { return loading_lines(nullptr, nullptr); }
+
+// Draws the loading screen's words (image `w` x `h` texels centred in 320 x 224) into the frame buffer the draw environment names: every carrier a sprite item of
+// one packet drawn at once (pc_frame_immediate), each registered with the command word of its own primitive in it.
+extern "C" void pc_gim_text_loading_draw(int w, int h)
+{
+    std::vector<Line> lines;
+    Fill fill;
+    if (!loading_lines(&lines, &fill))
+        return;
+    Mapping m = { (float)((320 - w) / 2), (float)((224 - h) / 2), 1.0f };
+    int uvclut = PC_PICTURE_U | PC_PICTURE_V << 8 | PC_PICTURE_CLUT << 16, first = pc_frame_count();
+    std::vector<pc_ui_picture_line> parts;
+    emit_lines(lines, m, fill, true, [&](const pc_ui_picture_line& job) {
+        emit_job(job, nullptr, nullptr, [&](int xy, const pc_ui_picture_line& part, int, int, int, int) {
+            pc_frame_sprite(0, (short)xy, (short)(xy >> 16), 1, 1, uvclut & 255, uvclut >> 8 & 255, 0x808080, uvclut >> 16 & 0xffff, PC_ITEM_INHERIT, 0);
+            parts.push_back(part);
+        });
+    });
+    std::vector<const void*> commands(parts.size(), nullptr);
+    pc_frame_immediate_commands(first, commands.data(), (int)commands.size());
+    for (size_t i = 0; i < parts.size(); i++)
+        if (commands[i])
+            pc_ui_text_picture_add(commands[i], &parts[i], 0, 0, 0, 0);
+    pc_frame_immediate(first);
 }

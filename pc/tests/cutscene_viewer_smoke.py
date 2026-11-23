@@ -42,7 +42,7 @@ SCENES = ["room-009-04-s001", "evt-0027", "evt-0038", "evt-0037", "room-070-00-s
 MIN_FRAMES, MIN_PLACES = 240, 8
 PLAY = 1500  # frames each scene is watched at most
 M, N, A = 150, 300, 70  # (marks every 30 frames: A is not one)
-STATE_KEYS = ("ram", "heap", "io", "overlays", "vram")
+STATE_KEYS = ("heap", "overlays", "vram")
 # The game's state replays exactly (digests, hashes); the pictures are drawn by the renderer, whose temporal
 # history (the native characters' frame-to-frame matching) is host state the take does not rewind: a replayed
 # picture can differ in a few pixels of a moving character (seen: 9 of 307,200).

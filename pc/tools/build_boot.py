@@ -1004,7 +1004,7 @@ if battle:
     plg_sources = sorted((root / "pc/src/game/EFFECT").glob("PLG*.BIN/*.c"))
     # The plug-in slot is a buffer of the program (main.c pc_plugin_slot): the words of the files are read as
     # data. A plug-in source that turns one into a pointer would find a PS1 address in it, so none may.
-    guest_conversion = re.compile(r"psx_get|psx_set|psx_to_ptr|psx_addr|psx_ptr|ROOD_GUEST_RAM_BASE|0x80[0-9A-Fa-f]{6}\b")
+    guest_conversion = re.compile(r"psx_get|psx_set|psx_to_ptr|psx_addr|psx_ptr|0x80[0-9A-Fa-f]{6}\b")
     for source in [*plg_sources, *sorted((root / "pc/src/game/EFFECT").glob("*.h"))]:
         found = guest_conversion.search(source.read_text())
         if found:
@@ -2050,6 +2050,11 @@ externs = sorted({e for t in generated_tables.values() for e in t if e != "0x000
 )
 compile_generated(["gcc", *flags, "-c", str(out / "function_tables.c"), "-o", str(out / "function_tables.o")])
 objects.append(out / "function_tables.o")
+def is_zig(obj):
+    """An object of the owned Zig: the static ones are named *_zig; the engine library's objects (--engine-library) are the library's."""
+    return obj.stem.endswith("_zig") or obj in library_objects
+
+
 def lp64_native_imports():
     """64-bit: data imports whose declared type changes layout under LP64
     (pointers, 8-byte longs) get native definitions instead of their PS1
@@ -2186,14 +2191,14 @@ def lp64_native_imports():
         # declaration does not size the region (a one-element declaration of
         # an unsized array would shrink it), and must agree with the result.
         complete = [info["ps1_size"] for obj, info in infos
-                    if changes(info) and info.get("size") and not obj.stem.endswith("_zig")]
+                    if changes(info) and info.get("size") and not is_zig(obj)]
         # Complete types: their PS1 size; incomplete arrays: up to the next import. Where no C declares the
         # import any more (its users are Zig now), the owned code's own complete declaration sizes it.
-        owned = [info["ps1_size"] for obj, info in infos if obj.stem.endswith("_zig") and info.get("size")]
+        owned = [info["ps1_size"] for obj, info in infos if is_zig(obj) and info.get("size")]
         size = max(complete) if complete else max(owned) if owned else extent
         problems += [f"{name}: {obj.stem} declares {info['type']} ({info['ps1_size']} PS1 bytes), the C {size}"
                      for obj, info in infos
-                     if obj.stem.endswith("_zig") and info.get("size") and info["ps1_size"] != size]
+                     if is_zig(obj) and info.get("size") and info["ps1_size"] != size]
         spans.append([address, address + size, [name], groups[name] or ""])
     regions = []
     for span in sorted(spans, key=lambda span: (span[3], span[0], span[1])):
@@ -2270,7 +2275,7 @@ def lp64_native_imports():
         accessor that returns its address (its object cannot tell a read from a pointer use), so its source
         is read instead: only X().* not under & is a plain load or store. The C's pc_views_keep references
         do not count."""
-        zig = obj.stem.endswith("_zig")  # owned Zig: read from its source below
+        zig = is_zig(obj)  # owned Zig: read from its source below
         taken = set()
         function = ""
         instruction = ""
@@ -2416,7 +2421,7 @@ def lp64_native_imports():
         infos = [(obj, info) for obj, info in declarations.get(declared_name(name), [])]
         return bool(infos) and any(info.get("size") == 0 for _, info in infos) and not any(
             info.get("pointer") or info.get("pointer_words") or (info.get("element") or {}).get("pointer")
-            or not (info.get("ps1_size") or obj.stem.endswith("_zig")) for obj, info in infos)
+            or not (info.get("ps1_size") or is_zig(obj)) for obj, info in infos)
     # (ENDING's wave table vs_ending_creditsRippleDistanceGrid[4][16] was read at [i + 1][j + 1], past its end into three illustration words and the decode cursors:
     # D4.c names those reads now (pc_phantom_pain_ripple), so nothing depends on the imports lying side by side and the table moves like any other.)
     OVERRUN = set()
@@ -2459,7 +2464,7 @@ def lp64_native_imports():
         end = start + size
         if name in OVERRUN:
             pinned[name] = "read past its end by the code, into neighbours that must stay where they are"
-        elif len({info.get("ps1_size") for obj, info in declarations.get(declared_name(name), []) if not obj.stem.endswith("_zig")}) > 1:
+        elif len({info.get("ps1_size") for obj, info in declarations.get(declared_name(name), []) if not is_zig(obj)}) > 1:
             # Declared as different things (D_800E909C: u_char [] here, vs_actors_TextureAnimationKey [][28] there): the bytes are
             # a table of the larger kind, whose extent the labels after it do not mark.
             pinned[name] = "declared with different sizes: its extent is not the next label's"
@@ -2673,6 +2678,9 @@ for name in sorted(missing):
         continue
     if name in addresses and name not in calls and name not in functions:
         address = addresses[name]
+        if arch64:
+            # (the 64-bit game maps no PS1 RAM: an import the mover did not make native would read nothing)
+            raise RuntimeError(f"Data import {name} at {address:#x} is not a native object: the 64-bit game has no PS1 address space")
         if not (
             0x80000000 <= address < 0x80200000 or 0x1F800000 <= address < 0x1F800400
         ):
@@ -2946,8 +2954,7 @@ if engine_library:
         engine_boundary.publish_library(staged, library)
     except (RuntimeError, ValueError, OSError) as error:
         raise SystemExit(f"engine library boundary: {error}")
-    host_link = ["gcc", "-m64", "-no-pie", "-Wl,--section-start=rood_guest_pages=0x1f801000",  # as the static link
-                 "-Wl,--gc-sections", *link_compress_flags, "-Wl,--wrap=free,--wrap=realloc",  # (engine_host.c: a library block the host frees leaves the registry)
+    host_link = ["gcc", "-m64", "-no-pie", "-Wl,--gc-sections", *link_compress_flags, "-Wl,--wrap=free,--wrap=realloc",  # (engine_host.c: a library block the host frees leaves the registry)
                  *[str(o) for o in host_objects], str(out / "engine_boundary.o"), *pin_args, str(out / "imports.ld"),
                  "-Wl,--dynamic-list=" + str(out / "host_exports.list"),
                  *[f"-Wl,--undefined={name}" for name in boundary["from_archives"]],
@@ -2982,8 +2989,6 @@ link = (
         # it. 64 bits: links are guest-only; non-PIE keeps native addresses
         # below 4 GB (psx_ptr fields can hold them).
         *(["-m64", "-no-pie"] if arch64 else ["-m32", "-no-pie", "-Wl,-Ttext-segment=0x00400000"]),
-        # The I/O page (boot_runtime.c): the image's last page, so the heap starts above it.
-        "-Wl,--section-start=rood_guest_pages=0x1f801000",
         "-Wl,--gc-sections",
         *link_compress_flags,
         *[str(o) for o in objects],

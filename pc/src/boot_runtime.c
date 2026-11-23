@@ -881,6 +881,11 @@ __asm__(".text\n"
  * search (which cannot leave the switched stack); exceptions elsewhere (a
  * driver's own handled ones) are left alone. */
 extern char __ImageBase[];
+static uintptr_t image_size(void)
+{
+    const IMAGE_DOS_HEADER* dos = (const IMAGE_DOS_HEADER*)__ImageBase;
+    return ((const IMAGE_NT_HEADERS*)(__ImageBase + dos->e_lfanew))->OptionalHeader.SizeOfImage;
+}
 static LONG WINAPI pc_exception(EXCEPTION_POINTERS* info)
 {
     DWORD code = info->ExceptionRecord->ExceptionCode;
@@ -889,7 +894,7 @@ static LONG WINAPI pc_exception(EXCEPTION_POINTERS* info)
         && code != EXCEPTION_INT_DIVIDE_BY_ZERO && code != EXCEPTION_PRIV_INSTRUCTION
         && code != EXCEPTION_STACK_OVERFLOW)
         return EXCEPTION_CONTINUE_SEARCH;
-    if (at < (uintptr_t)__ImageBase || at >= ROOD_GUEST_RAM_BASE)
+    if (at < (uintptr_t)__ImageBase || at >= (uintptr_t)__ImageBase + image_size())
         return EXCEPTION_CONTINUE_SEARCH;
     char line[160];
     int len = snprintf(line, sizeof line,
@@ -991,7 +996,7 @@ static void reserve_game_stack(void)
         fclose(maps);
     p = mmap(NULL, GAME_STACK_SIZE, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | (sizeof(void*) == 8 ? MAP_32BIT : 0), -1, 0);
-    if (p == MAP_FAILED || (uintptr_t)p + GAME_STACK_SIZE > ROOD_GUEST_RAM_BASE) {
+    if (p == MAP_FAILED) {
         perror("game stack below 2 GB");
         exit(1);
     }
@@ -1032,7 +1037,7 @@ const unsigned rood_arena_size = ROOD_ARENA_SIZE;
 const uintptr_t rood_port_base = ROOD_PORT_BASE;
 const unsigned rood_port_size = ROOD_PORT_SIZE;
 
-static void* map_guest(uintptr_t address, size_t size)
+static void* map_fixed(uintptr_t address, size_t size)
 {
 #ifdef _WIN32
     return VirtualAlloc((void*)address, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -1042,20 +1047,6 @@ static void* map_guest(uintptr_t address, size_t size)
     return p == MAP_FAILED ? NULL : p;
 #endif
 }
-#ifndef _WIN32
-/* The I/O page is part of the image (build_boot.py links this section at
- * ROOD_IO_BASE): the kernel starts the heap (brk) at a random
- * point up to 1 GB past the image's end (x86-64), and the pinned game region
- * (snapshot_layout.py) ends a little over 100 MB below it, so the
- * heap the C and C++ runtimes allocate before main covered the pages about
- * once in 5000 launches ("guest mapping: File exists"). Ending the image at
- * them puts the heap above them. */
-__asm__(".section rood_guest_pages,\"aw\",@nobits\n"
-        ".balign 4096\n"
-        "pc_guest_pages: .space 0x1000\n"
-        ".previous");
-extern char pc_guest_pages[];
-#endif
 int main(int argc, char** argv)
 {
 #ifdef _WIN32
@@ -1111,23 +1102,8 @@ int main(int argc, char** argv)
     /* Guest memory first: the window's graphics driver (Vulkan and its
      * layers especially) maps memory of its own, which must not land in the
      * guest's fixed ranges. */
-    void* ram = map_guest(ROOD_GUEST_RAM_BASE, ROOD_GUEST_RAM_SIZE);
-    void* arenas = map_guest(ROOD_ARENA_BASE, ROOD_ARENA_SIZE);
-#ifdef _WIN32
-    /* Windows reserves in 64 KB granules: the I/O page is the second 4 KB of its granule's first 8 KB. */
-    void* io_granule = map_guest(ROOD_IO_BASE & ~0xFFFFul, 0x2000);
-    void* io = io_granule;
-#else
-    if (pc_guest_pages != (char*)(uintptr_t)ROOD_IO_BASE) {
-        fprintf(stderr, "guest mapping: rood_guest_pages is linked at %p, not at the I/O page (build_boot.py)\n",
-            (void*)pc_guest_pages);
-        return 1;
-    }
-    /* I/O page: the sound driver writes SPU registers (0x1F801C00..) here;
-     * pc/src/audio_spu.cpp synchronises them into the software SPU. */
-    void* io = pc_guest_pages;
-#endif
-    if (!ram || !arenas || !io) {
+    void* arenas = map_fixed(ROOD_ARENA_BASE, ROOD_ARENA_SIZE);
+    if (!arenas) {
         perror("guest mapping");
         return 1;
     }
@@ -1159,13 +1135,6 @@ int main(int argc, char** argv)
     if (fread(header, 1, sizeof header, f) != sizeof header
         || memcmp(header, "PS-X EXE", 8))
         return 1;
-    uint32_t address, size;
-    memcpy(&address, header + 0x18, 4);
-    memcpy(&size, header + 0x1c, 4);
-    if (address < ROOD_GUEST_RAM_BASE || address >= (ROOD_GUEST_RAM_BASE + ROOD_GUEST_RAM_SIZE) || size > (ROOD_GUEST_RAM_BASE + ROOD_GUEST_RAM_SIZE) - address)
-        return 1;
-    if (fread((void*)(uintptr_t)address, 1, size, f) != size)
-        return 1;
     /* The sound driver's LFO quirk (25AC.c pc_sound_lfo_quirk_load): 72 bytes of the executable's code, by file offset. */
     unsigned char lfo_quirk[72];
     if (fseek(f, 0x939C, SEEK_SET) || fread(lfo_quirk, 1, sizeof lfo_quirk, f) != sizeof lfo_quirk)
@@ -1173,8 +1142,8 @@ int main(int argc, char** argv)
     pc_sound_lfo_quirk_load(lfo_quirk);
     fclose(f);
     pc_log(sizeof(void*) == 8
-            ? "64-bit native game startup; original RAM data loaded, MIPS code is non-executable"
-            : "32-bit native game startup; original RAM data loaded, MIPS code is non-executable");
+            ? "64-bit native game startup; MIPS code is non-executable"
+            : "32-bit native game startup; MIPS code is non-executable");
     pc_log(window ? "backend: keyboard/gamepad input, file-backed memory cards (pc/save)"
                   : "backend: disconnected controllers, file-backed memory cards (pc/save)");
     pc_overlay_statics_init();
@@ -2287,7 +2256,7 @@ extern char __start_rood_game_text[] __attribute__((weak)), __stop_rood_game_tex
 static int native_code(uintptr_t address)
 {
 #ifdef _WIN32
-    return address >= (uintptr_t)__ImageBase && address < ROOD_GUEST_RAM_BASE;
+    return address >= (uintptr_t)__ImageBase && address < (uintptr_t)__ImageBase + image_size();
 #else
     extern char __executable_start[], etext[];
     return address >= (uintptr_t)__executable_start && address < (uintptr_t)etext;

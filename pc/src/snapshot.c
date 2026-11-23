@@ -361,10 +361,8 @@ typedef struct {
 static int ranges(range* out)
 {
     int n = 0;
-    out[n++] = (range) { (char*)(uintptr_t)ROOD_GUEST_RAM_BASE, ROOD_PS1_RAM_SIZE, "ram" };
     /* the game heap's arena: its used size is the original's (vs_main_initHeap's), rounded to a page */
     out[n++] = (range) { (char*)(uintptr_t)ROOD_HEAP_BASE, (ROOD_HEAP_SIZE + 0xFFFu) & ~0xFFFu, "heap" };
-    out[n++] = (range) { (char*)(uintptr_t)ROOD_IO_BASE, 0x1000, "io" };
     /* the port arena (decoded file objects, S6), all of it */
     out[n++] = (range) { (char*)(uintptr_t)ROOD_PORT_BASE, ROOD_PORT_SIZE, "port" };
     if (__start_rood_state_data)
@@ -1051,26 +1049,27 @@ int pc_snapshot_ranges(char* out, int size, int dump, const char* path)
 }
 
 /* RPC snapshot {action: "hash"}: FNV-1a hashes of what a snapshot holds
- * (guest memory, native game statics, overlays, VRAM), for comparisons. */
+ * (the arenas, native game statics, overlays, VRAM), for comparisons. */
 int pc_snapshot_hash(char* out, int size)
 {
     if (pc_hwc_drain)
         pc_hwc_drain();
     range r[MAX_RANGES];
     int n = ranges(r);
-    uint64_t state = FNV0, overlays = FNV0;
-    for (int i = 3; i < n; i++) { /* after ram, heap and io */
-        if (r[i].name[0] == 's') /* state_data, state_bss */
+    uint64_t state = FNV0, overlays = FNV0, heap = FNV0;
+    for (int i = 0; i < n; i++) {
+        if (!strcmp(r[i].name, "heap"))
+            heap = fnv(r[i].start, r[i].size, FNV0);
+        else if (r[i].name[0] == 's') /* state_data, state_bss */
             state = fnv(r[i].start, r[i].size, state);
         else
             overlays = fnv(r[i].start, r[i].size, overlays);
     }
     return snprintf(out, (size_t)size,
-        "{\"ram\":\"%016llx\",\"heap\":\"%016llx\",\"io\":\"%016llx\",\"state\":\"%016llx\","
+        "{\"heap\":\"%016llx\",\"state\":\"%016llx\","
         "\"overlays\":\"%016llx\",\"vram\":\"%016llx\",\"vsync\":%u,\"code_key\":\"%016llx\","
         "\"layout_key\":\"%016llx\"}",
-        (unsigned long long)fnv(r[0].start, r[0].size, FNV0), (unsigned long long)fnv(r[1].start, r[1].size, FNV0),
-        (unsigned long long)fnv(r[2].start, r[2].size, FNV0), (unsigned long long)state,
+        (unsigned long long)heap, (unsigned long long)state,
         (unsigned long long)overlays, (unsigned long long)pc_vram_transfer_digest(FNV0),
         pc_vsync_count(), (unsigned long long)code_key(), (unsigned long long)layout_key());
 }

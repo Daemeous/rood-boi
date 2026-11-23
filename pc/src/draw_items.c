@@ -952,7 +952,8 @@ int pc_frame_lower(int index, unsigned words[3][16], int lengths[3])
  * the packet a screen built by hand), then given back. */
 extern void DrawPrim(void* packet);
 static unsigned immediate_packet[1 + 8 * 48];
-static const unsigned* immediate_build(int first)
+/* The packet of the items from `first`; `commands` (when not NULL) takes the primitive of item first + k as commands[k] (up to `room` of them). */
+static const unsigned* immediate_build(int first, const void** commands, int room)
 {
     unsigned words[3][16];
     int lengths[3], n = 0, last = 0;
@@ -963,11 +964,14 @@ static const unsigned* immediate_build(int first)
             last = n;
             n += lengths[k];
         }
+        if (commands && i - first < room)
+            commands[i - first] = n ? immediate_packet + 1 + last : NULL;
     }
     immediate_packet[0] = (unsigned)n << 24;
     return n ? immediate_packet + 1 + last : NULL;
 }
-const void* pc_frame_immediate_command(int first) { return immediate_build(first); }
+const void* pc_frame_immediate_command(int first) { return immediate_build(first, NULL, 0); }
+void pc_frame_immediate_commands(int first, const void** commands, int room) { immediate_build(first, commands, room); }
 void pc_frame_immediate_words(const unsigned* words, int n)
 {
     static unsigned packet[1 + 16];
@@ -1003,7 +1007,7 @@ void pc_frame_immediate_run(int first)
 }
 void pc_frame_immediate(int first)
 {
-    if (immediate_build(first))
+    if (immediate_build(first, NULL, 0))
         DrawPrim(immediate_packet);
     pc_frame_rewind(first);
 }

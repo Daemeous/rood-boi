@@ -29,7 +29,7 @@ void SpuStart(void)
     pc_sound_lock();
     pc_spu_reset();
     pc_spu_set_transfer_mode(0);
-    *(volatile unsigned short*)0x1F801DAA = 0xC000;
+    pc_spu_set_control(0xC000);
     pc_sound_unlock();
 }
 void SpuQuit(void) {}

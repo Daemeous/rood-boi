@@ -83,12 +83,12 @@ def main():
             g.replay(rec)
             g.digest("compare")
             g.run(10)
-            original = g.read(0x80001000, 1)
-            g.write(0x80001000, bytes([original[0] ^ 0x5a]))
+            original = g.read(0x10013F000, 1)
+            g.write(0x10013F000, bytes([original[0] ^ 0x5a]))
             g.run(590)
             poked = g.digest("result")
             check(poked["error"] == 0 and poked["first_tick"] == 10 and
-                  any(page.startswith("ram+0x1000") for page in poked["first_pages"]),
+                  any(page.startswith("port+0x3f000") for page in poked["first_pages"]),
                   f"perturbed byte detected with range and offset: {poked}")
             g.replay(None)
         finally:

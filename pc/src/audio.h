@@ -9,6 +9,7 @@
 void pc_spu_sync_registers(void);
 void pc_spu_render(short* out, int frames);
 void pc_spu_reset(void);
+void pc_spu_set_control(unsigned short value);
 unsigned int pc_spu_set_transfer_addr(unsigned int addr);
 void pc_spu_set_transfer_mode(int io);
 unsigned int pc_spu_write(const unsigned char* data, unsigned int size);

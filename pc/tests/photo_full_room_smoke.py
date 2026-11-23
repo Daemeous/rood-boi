@@ -47,7 +47,7 @@ from card_fixtures import card_guard, default_save  # noqa: E402
 from photo_foundation_smoke import ppm  # noqa: E402
 
 CAPABILITIES = ["game.pause", "camera", "post", "ui.hide", "capture", "input.capture"]
-DIGEST = ("ram", "heap", "io", "vram", "overlays", "vsync")
+DIGEST = ("heap", "vram", "overlays", "vsync")
 OUTDOOR = (32, 0)  # Rue Vermillion: open to the sky
 LISTED = (40, 0)  # Snowfly Forest: its hide list (room section 11) leaves groups out for the game camera
 WINDOW = (960, 720)

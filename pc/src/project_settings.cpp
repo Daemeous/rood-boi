@@ -268,7 +268,7 @@ const char* pc_memory_card_path_setting(int slot);
 static const char* const window_mode_names[3] = { "windowed", "borderless", "fullscreen" };
 
 extern "C" int pc_gim_text; /* gim_text.cpp */
-extern "C" float pc_gim_text_size, pc_gim_text_gradient, pc_gim_text_caps;
+extern "C" float pc_gim_text_size, pc_gim_text_gradient, pc_gim_text_caps, pc_gim_text_glow;
 extern "C" char pc_gim_text_fill[1024];
 extern "C" int pc_gim_text_fill_force;
 
@@ -307,6 +307,7 @@ const Entry entries[] = {
     I("gim_text_fill_force", pc_gim_text_fill_force), /* GIM pictures of text as real text (gim_text.cpp), 0 off */
     F("gim_text_size", pc_gim_text_size),
     F("gim_text_gradient", pc_gim_text_gradient),
+    F("gim_text_glow", pc_gim_text_glow),
     F("gim_text_caps", pc_gim_text_caps),
     I("native_occlusion", pc_native_occlusion),
     I("native_room_order", pc_native_room_order),

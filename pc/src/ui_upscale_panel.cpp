@@ -13,7 +13,7 @@
 extern "C" int pc_gim_text; /* gim_text.cpp: GIM pictures of text as real text */
 extern "C" char pc_gim_text_fill[1024];
 extern "C" int pc_gim_text_fill_force;
-extern "C" float pc_gim_text_size, pc_gim_text_gradient, pc_gim_text_caps;
+extern "C" float pc_gim_text_size, pc_gim_text_gradient, pc_gim_text_caps, pc_gim_text_glow;
 
 extern "C" int pc_hw_scale, pc_hw_active;
 
@@ -240,9 +240,12 @@ extern "C" void pc_ui_upscale_panel(void)
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("The intro quote, the briefing pages and the staff cards are pictures. With the modern fonts (Text) and your text pack for a\n"
                               "picture (pc/user/gim_text/<FILE>.txt, from pc/tools/gim_text_pack.py), its words are drawn as text at the picture's places\n"
-                              "and in its colours. Settings gim_text, gim_text_size, gim_text_gradient, gim_text_caps, gim_text_fill; the font is the pictures style (HUD typography).");
+                              "and in its colours. Settings gim_text, gim_text_size, gim_text_gradient, gim_text_glow, gim_text_caps, gim_text_fill; the font is the pictures style (HUD typography).");
         ImGui::SliderFloat("Words size", &pc_gim_text_size, 0.5f, 1.5f, "%.2f x the line");
         ImGui::SliderFloat("Gradient", &pc_gim_text_gradient, 0.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("Glow", &pc_gim_text_glow, 0.0f, 3.0f, pc_gim_text_glow > 0.0f ? "%.2f x the fill's" : "off");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The halo behind the words (the loading screen's): how much of the fill's glow shows (glow=rrggbb glow_radius=PS1px glow_strength=X in the fill).");
         ImGui::SliderFloat("Small capitals", &pc_gim_text_caps, 0.0f, 1.0f, pc_gim_text_caps > 0.0f ? "%.2f of the capitals" : "off");
         ImGui::InputText("Fill", pc_gim_text_fill, sizeof pc_gim_text_fill);
         if (ImGui::IsItemHovered())

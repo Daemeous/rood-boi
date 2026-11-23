@@ -175,6 +175,8 @@ void pc_frame_immediate_run(int first);
 void pc_frame_immediate_words(const unsigned* words, int n);
 /* The packet's last primitive's first word (the command word ui_text keys on), the packet built as pc_frame_immediate draws it. */
 const void* pc_frame_immediate_command(int first);
+/* The same for every item: commands[k] is the command word of the primitive of item first + k in that packet (k < room). */
+void pc_frame_immediate_commands(int first, const void** commands, int room);
 /* The command word of item `index`'s lowered packet: ui_text keys its words on it, as it did on a packet's. The index
  * of the item a command word belongs to, -1 when it is none's. */
 const void* pc_frame_command(int index);

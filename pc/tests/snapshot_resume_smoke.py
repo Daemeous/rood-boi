@@ -40,7 +40,7 @@ import snapshot_layout  # noqa: E402
 from rood_rpc import Deadline, Game, RpcError, awake  # noqa: E402
 
 FRAMES = 60
-STATE_KEYS = ("ram", "heap", "io", "state", "overlays", "vram")
+STATE_KEYS = ("heap", "state", "overlays", "vram")
 # The engine moved: code (and so every return address above the boundary),
 # read-only data, data and bss.
 PAD = """

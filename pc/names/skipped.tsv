@@ -111,7 +111,6 @@ data	D_800EA234	confidence med (deferred)	vs_battle_sphereArcBases
 data	D_800EA2C4	confidence med (deferred)	vs_battle_sphereMirroredVertices
 data	D_800EA9B6	confidence med (deferred)	vs_battle_targetStatusLineTemplate
 data	D_800EB708	confidence med (deferred)	vs_render_compactGlyphLeftTrim
-data	D_800EB7D4	confidence med (deferred)	vs_render_compactGlyphIndices
 data	D_800EB98C	confidence med (deferred)	vs_render_glyphPixelExpansion
 data	D_800EB9AC	confidence med (deferred)	vs_battle_reuseSphereVolumes
 data	D_800EB9AE	confidence med (deferred)	vs_battle_hudStatusIconsHidden

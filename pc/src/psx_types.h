@@ -15,16 +15,6 @@
 #ifndef ROOD_PSX_TYPES_H
 #define ROOD_PSX_TYPES_H
 
-/* The PS1's 2 MB of main RAM as the host maps it (T12): the one place the
- * address is written. A guest pointer's 32-bit word is an address in it (or
- * in the first 4 GB of the host for natively placed objects). */
-#define ROOD_GUEST_RAM_BASE 0x80000000
-#define ROOD_PS1_RAM_SIZE 0x200000
-/* The hardware registers' page (SPU, DMA, root counters: the sound driver and libpress write them by address): one 4 KB page in the host image,
- * written by the game and read by pc/src/audio_spu.cpp. The scratchpad below it (0x1F800000) is gone: its overlays are native objects. */
-#define ROOD_IO_BASE 0x1F801000u
-/* The guest window: the PS1's 2 MB, where the original's executable, overlays and statics sit. */
-#define ROOD_GUEST_RAM_SIZE ROOD_PS1_RAM_SIZE
 /* The arenas (memory lane S4, S6): the game heap and the port arena live in their own mapping, at an address we
  * choose and keep the same in every process (so snapshots and rewind restore them). Pointers into them are ordinary 64-bit
  * pointers; no 32-bit word names them (the sound driver's words are pointer-sized since T18). ROOD_ARENA_SIZE is what is mapped (pages nobody touches cost nothing). */
@@ -39,12 +29,11 @@
  * into a build with the same range). */
 #define ROOD_PORT_BASE (ROOD_ARENA_BASE + 0x100000)
 #define ROOD_PORT_SIZE 0x40000
-/* Whether [address, address + size) lies in the game's memory (the window or the arenas), as a host bridge needs. */
+/* Whether [address, address + size) lies in the game's arenas (heap and port), as a host bridge needs. */
 static inline int rood_guest_memory(__UINTPTR_TYPE__ address, __UINTPTR_TYPE__ size)
 {
-    __UINTPTR_TYPE__ in_window = address - ROOD_GUEST_RAM_BASE, in_arena = address - ROOD_ARENA_BASE;
-    return (in_window < ROOD_PS1_RAM_SIZE && size <= ROOD_PS1_RAM_SIZE - in_window)
-        || (in_arena < ROOD_ARENA_SIZE && size <= ROOD_ARENA_SIZE - in_arena);
+    __UINTPTR_TYPE__ in_arena = address - ROOD_ARENA_BASE;
+    return in_arena < ROOD_ARENA_SIZE && size <= ROOD_ARENA_SIZE - in_arena;
 }
 
 /* Where the PC C reads (and clears) fields through what the original left NULL

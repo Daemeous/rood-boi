@@ -289,6 +289,14 @@ typedef struct {
     unsigned colour[8];       /* 0xRRGGBB */
     float block[4];           /* the fill's block: all the picture's lines together */
     float clip[2];            /* a wide line is set as pieces (an image is at most 255 texels across): this piece's x range, PS1 pixels (clip[1] <= clip[0]: all) */
+    int glow_pass;            /* this carrier is the line's glow (below the words): a soft halo image, not the words */
+    float glow_radius;        /* PS1 pixels the halo reaches (about 1% at that distance), 0: none */
+    float glow_strength;      /* 0..: how much of the halo shows (1: the halo's brightest part reaches about 98% of the colour near thick strokes) */
+    unsigned glow_colour;     /* 0xRRGGBB */
+    char font[128];           /* this line's own font file (the pack's `font=`; empty: the pictures style's) */
+    float stretch;            /* its own horizontal stretch (`font_stretch=`; 0: the style's) */
+    float embolden;           /* its own weight offset in ems (`font_embolden=`), used when embolden_set */
+    int embolden_set;
 } pc_ui_picture_line;
 typedef struct {
     int image;                /* the line's glyph image (ui_upscale: pc_ui_text_image_*) */
@@ -317,11 +325,16 @@ int pc_ui_text_picture_quad(const void* command, int u, int v, int w, int h, uns
  * RAMP: coverage 0..1 picks CLUT index lo..hi (the original glyph's ramp),
  * the coverage its alpha. OUTLINED: that ramp inside a one-pixel outline of
  * CLUT index 1 (the outline's outer edge the alpha). LABEL: outline colour
- * lo (when bit 27) blended into body colour hi by coverage. */
-enum { PC_UI_DIST_RAMP = 0, PC_UI_DIST_OUTLINED = 1, PC_UI_DIST_LABEL = 2 };
+ * lo (when bit 27) blended into body colour hi by coverage. SOFT (bit 30
+ * clear): bits 27-14 a colour (r 5, g 5, b 4 bits), the distance bits an
+ * alpha (0.5 + d / 64), for a glow's halo. */
+enum { PC_UI_DIST_RAMP = 0, PC_UI_DIST_OUTLINED = 1, PC_UI_DIST_LABEL = 2, PC_UI_DIST_SOFT = 3 };
 #define PC_UI_DIST_FAR (-32.0f) /* PS1 pixels: the farthest distance kept */
 uint32_t pc_ui_dist_texel(float d, int mode, int lo, int hi, int outlined);
 uint32_t pc_ui_dist_direct(float d, uint16_t colour);
+/* A soft texel (mode 3: a glow's halo): a colour (5:5:4 bits) and its own alpha 0..1, not an edge; the shaders and pc_ui_dist_colour read the alpha from
+ * the distance bits as 0.5 + d / 64. */
+uint32_t pc_ui_dist_soft(float alpha, uint16_t colour);
 static inline float pc_ui_dist_of(uint32_t t)
 {
     return (t >> 31) ? (float)((int32_t)(t << 18) >> 18) / 256.0f : PC_UI_DIST_FAR;

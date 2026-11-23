@@ -31,7 +31,8 @@ static char _effPurgeSlot[0x4800] __attribute__((aligned(16)));
 /* The plug-ins' tables are imports placed in it by the link (imports.ld: pc_plugin_slot + their offset). */
 char pc_plugin_slot[0x9000] __attribute__((aligned(16)));
 _Static_assert(VS_MAIN_HEAP_SIZE == ROOD_HEAP_SIZE, "the heap arena: psx_types.h and main.h agree");
-void* const vs_overlay_slots[5] = { (void*)(ROOD_GUEST_RAM_BASE + 0x68800), _mainMenuSlot, _submenuSlot,
+static char _overlaySlot[0x8E000] __attribute__((aligned(16)));
+void* const vs_overlay_slots[5] = { _overlaySlot, _mainMenuSlot, _submenuSlot,
     pc_plugin_slot, _effPurgeSlot };
 
 typedef struct {
@@ -8101,6 +8102,11 @@ static void _initScreen(int w, int h, int arg2 __attribute__((unused)),
 #define IMG_W(header) (header.wLo + (header.wHi << 8))
 #define IMG_H(header) (header.hLo + (header.hHi << 8))
 
+#ifdef ROOD_PC
+int pc_gim_text_loading(void);
+void pc_gim_text_loading_draw(int w, int h);
+#endif
+
 static void _displayLoadingScreen(void)
 {
     RECT rect;
@@ -8110,6 +8116,20 @@ static void _displayLoadingScreen(void)
     ClearImage2(&rect, 0, 0, 0);
     DrawSync(0);
     VSync(2);
+#ifdef ROOD_PC
+    /* The words as real text (gitea #23, pc/src/gim_text.cpp): with the modern fonts and the player's NOWLOADING text pack the picture is not uploaded; its
+     * lines are drawn into the frame buffer shown (carrier sprites drawn at once, ui_text.c). */
+    if (pc_gim_text_loading()) {
+        DRAWENV draw;
+
+        SetDefDrawEnv(&draw, 0, 0, 320, 240);
+        PutDrawEnv(&draw);
+        pc_gim_text_loading_draw(IMG_W(_nowLoading_header), IMG_H(_nowLoading_header));
+        DrawSync(0);
+        SetDispMask(1);
+        return;
+    }
+#endif
     setRECT(&rect, (320 - IMG_W(_nowLoading_header)) / 2,
         (224 - IMG_H(_nowLoading_header)) / 2, IMG_W(_nowLoading_header),
         IMG_H(_nowLoading_header));

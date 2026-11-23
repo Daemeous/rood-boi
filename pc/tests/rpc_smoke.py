@@ -28,7 +28,7 @@ try:
     assert state["zone"] == 1 and state["start_state"] == 0, state
     address = symbols()["vs_state_savedEntryDoor"]
     assert game.read(address, 1)[0] == state["zone"]
-    scratch = 0x1F8003F0
+    scratch = 0x10013FF00  # spare bytes at the top of the port arena
     original = game.read(scratch, 4)
     game.write(scratch, b"\x12\x34\x56\x78")
     assert game.read(scratch, 4) == b"\x12\x34\x56\x78"

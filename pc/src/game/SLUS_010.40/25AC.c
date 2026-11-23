@@ -197,11 +197,17 @@ extern volatile int g_bSpuTransferring;
 #define PAN_CENTER_INDEX (SPU_PAN_TABLE_SIZE / 2)
 extern short g_Sound_StereoPanGainTableQ15[SPU_PAN_TABLE_SIZE];
 extern short vs_audio_mixerCenterPanGain;
+#ifdef ROOD_PC
+u_short pc_spu_regs[0x100]; /* the chip's registers as this driver writes them (hw.h SPU_REG); the software SPU reads them (audio_spu.cpp) */
+#endif
 FSoundChannelConfig g_PushedMusicConfig;
 extern u_int g_Music_LoopCounter;
 FSoundChannelConfig vs_audio_seqPrimaryMusicConfig;
 FSoundChannel vs_audio_seqSavedMusicChannels[32]; /* 32 channels */
 extern FSoundInstrumentInfo g_InstrumentInfo[256];
+/* The 16 LFO waves the table points at: the disc executable's data, one import up to the table (relocated into its words). */
+extern short vs_audio_lfoWaves[1026]; /* 0x804 bytes: up to the table */
+extern void pc_unimplemented(const char*) __attribute__((noreturn));
 extern short* g_Sound_LfoTable[16];
 extern int pc_sound_autopan_quirk; /* project_settings.cpp */
 /* The LFO wave types of 16 and up. The original's table held 16 wave pointers and ran on into the PS1 code's jump tables, so a
@@ -216,8 +222,12 @@ static short vs_audio_lfoQuirkWaves[LFO_QUIRK_SHORTS];
 static short vs_audio_lfoFlatWave[4] = { 0, 0, 0, -1 }; /* sample 0; a zero pair jumps by the next word (here back to the start) */
 static short* pc_sound_lfo_wave(u_int type)
 {
-    if (type < 16)
+    if (type < 16) {
+        /* the table's words were relocated to the waves' native import (build_boot.py); one that is not would read a PS1 address */
+        if (g_Sound_LfoTable[0] != vs_audio_lfoWaves)
+            pc_unimplemented("g_Sound_LfoTable's words are not relocated to vs_audio_lfoWaves");
         return g_Sound_LfoTable[type];
+    }
     return pc_sound_autopan_quirk ? vs_audio_lfoQuirkWaves + LFO_QUIRK_START : vs_audio_lfoFlatWave;
 }
 /* `bytes` (LFO_QUIRK_SHORTS * 2) are the executable's bytes from 0x40 before Sound_Cmd_11_Nop on. */
@@ -1084,9 +1094,6 @@ INCLUDE_ASM("build/src/SLUS_010.40/nonmatchings/25AC", vs_audio_driverResetPlayb
 /* PC only: the decomp's closest non-matching C (rood-reverse .work/ultracode/
  * r15-25AC-ENDING/i69_85.c, score 85); it differs only in register allocation/scheduling.
  */
-#define SPU_MAIN_VOL_L ((u_short*)0x1F801D80)
-#define SPU_MAIN_VOL_R ((u_short*)0x1F801D82)
-#define SPU_CONTROL ((u_short*)0x1F801DAA)
 extern FSoundChannel* D_800377FC;
 void vs_audio_driverResetPlaybackState(void)
 {

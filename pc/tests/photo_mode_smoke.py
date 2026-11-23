@@ -58,7 +58,7 @@ from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 from photo_foundation_smoke import ppm, difference  # noqa: E402
 
-DIGEST = ("ram", "heap", "io", "vram", "overlays", "vsync")
+DIGEST = ("heap", "vram", "overlays", "vsync")
 PLUGIN = "rood.photo"
 
 
@@ -320,7 +320,7 @@ def run(out, card):
             """The hash of each range a save state holds that the sound driver does not live in: the sound driver's state (the music
             channels and sequences, the I/O block) is native game statics (state_bss) and moves while Music keep runs it in real time."""
             return [(r["name"], r["hash"]) for r in g.call("snapshot", action="ranges")["ranges"]
-                    if r["name"] not in ("ram", "heap", "io", "state_bss")]
+                    if r["name"] not in ("heap", "state_bss")]
 
         def nothing_held(p):
             return (p["phase"] == "running" and not p["owners"] and p["camera"] is None and p["hidden"] == 0

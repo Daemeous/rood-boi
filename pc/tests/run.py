@@ -696,6 +696,11 @@ def suites(args, mode="egl"):
                       "(grimoires too) and the equipped weapon's Break Arts: wind-ups <= 32 vsyncs, none "
                       "presented, a 2000-vsync watchdog, clean afterwards")]
           if args.save.exists() else []),
+        *([Suite("gim_text_loading_smoke", [PY, str(TESTS / "gim_text_loading_smoke.py"), "--card", str(args.save)], 900,
+                 note="the loading screen's NOW LOADING as real text with a glow (gitea #23): the pack measured from the executable's picture; original text "
+                      "(with or without a pack) and modern text with no pack are the picture byte for byte; the words and halo are drawn at the picture's "
+                      "place at 4:3 and 16:9; gim_text_glow 0 removes the halo; a fill's glow colour is live")]
+          if (ROOT / "data/SLUS_010.40").exists() and args.save.exists() else []),
         *([Suite("gim_text_smoke", [PY, str(TESTS / "gim_text_smoke.py")], 3000,
                  note="pictures of text as real text (gitea #14): a pack made from the staff card's and the quote's own ink replaces their lines (one band of "
                       "changed rows per line), the rule under the title stays, the words follow the game's scanline wipe and the quote's fade, with "

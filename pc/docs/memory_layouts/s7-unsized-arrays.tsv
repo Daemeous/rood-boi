@@ -61,7 +61,7 @@ vs_battle_positionCursorSpriteTexCoords	0x800ea698		20	int []	pinned	follows vs_
 vs_battle_positionCursorBlinkFrame	0x800ea6ac		4	u_char	pinned	follows vs_battle_positionCursorSpriteTexCoords (pinned, int []): held until its extent is declared
 D_800EB708	0x800eb708	264	172	u_char []	pinned	follows vs_event_textBoxFrameStyles (moved, u_char *[]): held until its extent is declared
 vs_render_compactGlyphWidths	0x800eb7b4		32	u_char []	pinned	follows D_800EB708 (pinned, u_char []): held until its extent is declared
-D_800EB7D4	0x800eb7d4	60	60	u_char []	pinned	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+vs_render_compactGlyphIndices	0x800eb7d4	60	60	u_char []	pinned	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
 vs_battle_characterWidths	0x800eb810	413	380	unsigned char []	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
 D_800EB98C	0x800eb98c	32	32	u_short [16]	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
 D_800EBD68	0x800ebd68	8	8	char []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)

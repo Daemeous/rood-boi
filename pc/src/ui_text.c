@@ -165,6 +165,14 @@ uint32_t pc_ui_dist_direct(float d, uint16_t colour)
     return 0xc0000000u | (uint32_t)(colour >> 15) << 29 | (uint32_t)(colour & 0x7fff) << 14 | dist_bits(d);
 }
 
+uint32_t pc_ui_dist_soft(float alpha, uint16_t colour)
+{
+    unsigned r = colour & 31, g = colour >> 5 & 31, b = (colour >> 10 & 31) >> 1;
+    if (!(r | g | b))
+        r = 1; /* (0 is the colour key) */
+    return 0x80000000u | (uint32_t)PC_UI_DIST_SOFT << 28 | (r | g << 5 | b << 10) << 14 | dist_bits((alpha - 0.5f) * 64.0f);
+}
+
 static float clamp01(float x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
 /* As the shaders: colours mixed in 5-bit steps (blend555, below). */
 static uint16_t blend555(uint16_t a, uint16_t b, float t);
@@ -177,6 +185,11 @@ uint16_t pc_ui_dist_colour(uint32_t t, float d, const uint16_t* lut, float width
     if (t >> 30 & 1) /* direct */
         return (uint16_t)((t >> 14 & 0x7fff) | (t >> 29 & 1) << 15);
     int mode = (int)(t >> 28 & 3), hi = (int)(t >> 23 & 15), lo = (int)(t >> 19 & 15);
+    if (mode == PC_UI_DIST_SOFT) {
+        unsigned r = t >> 14 & 31, g = t >> 19 & 31, b4 = t >> 24 & 15;
+        *coverage = clamp01(0.5f + d / 64.0f);
+        return (uint16_t)(r | g << 5 | (b4 << 1 | b4 >> 3) << 10);
+    }
     if (mode == PC_UI_DIST_LABEL) {
         if (!(t >> 27 & 1))
             return lut[hi];
@@ -199,6 +212,10 @@ void pc_ui_text_resolve(const uint16_t* vram, unsigned clut, uint32_t* texels, i
         if (!(t >> 31))
             continue;
         uint16_t colour = pc_ui_dist_colour(t, pc_ui_dist_of(t), lut, 1.0f / (float)factor, &c);
+        if (!(t >> 30 & 1) && (t >> 28 & 3) == PC_UI_DIST_SOFT) { /* (a halo has no colour-keyed form: this atlas draws none) */
+            texels[i] = 0;
+            continue;
+        }
         texels[i] = c > (least >= 0 ? least : (t >> 30 & 1) ? 0.249f : 0.02f) ? colour : 0;
     }
 }
@@ -345,8 +362,15 @@ static unsigned char* msdf_of(const stbtt_fontinfo* info, float scale, int index
     return field;
 }
 
+static const glyph_field* field_of(int slot, const char* font, unsigned codepoint);
 /* The style's field of `codepoint` (NULL: no font, or the font lacks it). */
 static const glyph_field* field(int style, unsigned codepoint)
+{
+    return field_of(style, pc_ui_text_styles[style].font, codepoint);
+}
+
+/* The field of `codepoint` in the font file `font`, cached under `slot` (a style, or PC_UI_TEXT_STYLES + the file's index for a font a line asks for). */
+static const glyph_field* field_of(int slot, const char* font, unsigned codepoint)
 {
     static int env_done;
     if (!env_done++ && getenv("ROOD_UI_TEXT_FIELD") && *getenv("ROOD_UI_TEXT_FIELD")) /* (comparisons: sdf | msdf, over the setting) */
@@ -355,7 +379,7 @@ static const glyph_field* field(int style, unsigned codepoint)
         drop_glyphs();
         glyph_generation = pc_ui_text_generation;
     }
-    uint32_t key = (uint32_t)(style + 1) << 24 | (codepoint & 0xffffff);
+    uint32_t key = (uint32_t)(slot + 1) << 24 | (codepoint & 0xffffff);
     unsigned s = (key * 2654435761u) >> 21 & (GLYPH_SLOTS - 1);
     for (int probe = 0; probe < GLYPH_SLOTS; probe++, s = (s + 1) & (GLYPH_SLOTS - 1)) {
         glyph_field* g = &glyphs[s];
@@ -367,7 +391,7 @@ static const glyph_field* field(int style, unsigned codepoint)
             return NULL;
         g->key = key;
         ++glyph_count;
-        font_file* f = font_for(pc_ui_text_styles[style].font);
+        font_file* f = font_for(font);
         int index = f ? stbtt_FindGlyphIndex(&f->info, (int)codepoint) : 0;
         if (!index)
             return NULL;
@@ -525,30 +549,17 @@ static int page_index(const uint16_t* vram, int page_x, int u, int v)
 {
     return (pc_vram_at(vram, page_x + (u >> 2), v) >> ((u & 3) * 4)) & 15;
 }
-/* The game's small-capital tables (BATTLE.PRG, in guest RAM while the
- * field or a battle runs): 4-bit widths and page positions of ' '..'Z'. */
-/* Kept from the last time they were valid: menus that load their own
- * overlays (the map) reuse that memory while still drawing these glyphs. */
-static unsigned char kept_widths[32], kept_index[0x3c];
-static int kept;
-static const unsigned char* small_widths(void) { return kept_widths; }
-static const unsigned char* small_index(void) { return kept_index; }
-static int small_tables_valid(void)
+/* The game's small-capital tables (BATTLE.PRG's data, native objects the import link defines): 4-bit widths and page positions of ' '..'Z'. */
+extern unsigned char vs_render_compactGlyphWidths[32], vs_render_compactGlyphIndices[0x3c], vs_battle_characterWidths[];
+extern void* const vs_overlay_slots[5];
+/* BATTLE.PRG is the overlay in slot 0 (its tables are in the slot at their PS1 offsets from 0x80068800 as well as the native objects). */
+static int battle_resident(void)
 {
-    const unsigned char *w = (const unsigned char*)(uintptr_t)0x800EB7B4u,
-                        *x = (const unsigned char*)(uintptr_t)0x800EB7D4u;
-    int last = -1;
-    for (int c = 'A' - 0x20; c <= 'Z' - 0x20; c++) {
-        int width = (w[c >> 1] >> ((c << 2) & 4)) & 15;
-        int pos = (x[c] & 0xfe) | (x[c] & 1) << 8;
-        if (width < 3 || pos <= last)
-            return kept;
-        last = pos;
-    }
-    memcpy(kept_widths, w, sizeof kept_widths);
-    memcpy(kept_index, x, sizeof kept_index);
-    return kept = 1;
+    return memcmp((const char*)vs_overlay_slots[0] + 0x82FB4u, vs_render_compactGlyphWidths, 32) == 0
+        && memcmp((const char*)vs_overlay_slots[0] + 0x82FD4u, vs_render_compactGlyphIndices, 0x3c) == 0;
 }
+static const unsigned char* small_widths(void) { return vs_render_compactGlyphWidths; }
+static const unsigned char* small_index(void) { return vs_render_compactGlyphIndices; }
 static int small_find(int code, int* u, int* v, int* w)
 {
     int c = code - 0x20;
@@ -577,8 +588,9 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
         g->style = table ? PC_UI_TEXT_DIALOGUE : PC_UI_TEXT_MENU;
         g->codepoint = cp;
         g->box_u = col * 12, g->box_v = row * 12, g->box_w = 12, g->box_h = 12;
-        /* The game's advances (vs_battle_characterWidths, BATTLE.PRG). */
-        int advance = ((const unsigned char*)(uintptr_t)0x800EB810u)[index];
+        /* The game's advances (vs_battle_characterWidths): read where BATTLE.PRG is the overlay in its slot; the title's and the
+         * ending's overlays hold other data there, which the original's address read took for no advance (0). */
+        int advance = battle_resident() ? ((const unsigned char*)vs_battle_characterWidths)[index] : 0;
         g->advance = advance >= 3 && advance <= 12 ? advance : 0;
         int h = table * 189 + 0x11, x = table * 189 + 0x3b; /* H, x */
         g->ref_u = h % 21 * 12, g->ref_v = h / 21 * 12, g->ref_w = 12, g->ref_h = 12;
@@ -591,8 +603,6 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
         for (size_t i = 0; i < sizeof info_signs / sizeof info_signs[0] && immediate; i++)
             if (info_signs[i].u == u0 && info_signs[i].v == v0 && u1 == u0 + info_signs[i].w - 1)
                 return digits_sign(info_signs[i].code, u0, v0, info_signs[i].w, g);
-        if (!small_tables_valid())
-            return 0;
         /* A stat change popping up in battle (BATTLE.PRG vs_battle_drawValueLabelCaption:
          * STR -12) draws its sign as an 8 x 10 quad: the '-' (7 wide) with
          * the column after it. */
@@ -3191,6 +3201,7 @@ typedef struct {
     float pen[PICTURE_GLYPHS]; /* field-unit pens, in PS1 pixels from the origin */
     float gs[PICTURE_GLYPHS];  /* a glyph's own scale against the line's (small capitals) */
     float s, bold;             /* PS1 pixels per field pixel; the field offset of the weight */
+    float stretch;             /* the horizontal stretch (the line's own, else the style's) */
     float base;                /* baseline y, PS1 pixels */
     float x, y;                /* the image's origin */
     int w, h;
@@ -3224,11 +3235,14 @@ static int picture_layout(picture_job* j)
         return j->ok;
     j->generation = pc_ui_text_generation, j->ok = 0, j->count = 0;
     const pc_ui_text_style* st = &pc_ui_text_styles[PC_UI_TEXT_PICTURES];
-    font_file* f = font_for(st->font);
-    const glyph_field* cap = field(PC_UI_TEXT_PICTURES, 'H');
+    const pc_ui_picture_line* l = &j->line;
+    const char* path = l->font[0] ? l->font : st->font;
+    font_file* f = font_for(path);
+    int slot = !f || !l->font[0] ? PC_UI_TEXT_PICTURES : PC_UI_TEXT_STYLES + (int)(f - fonts);
+    const glyph_field* cap = field_of(slot, path, 'H');
     if (!f || !cap)
         return 0;
-    const pc_ui_picture_line* l = &j->line;
+    j->stretch = l->stretch > 0.0f ? l->stretch : st->stretch;
     float pen = 0, x0 = 1e9f, x1 = -1e9f, top = 0, depth = 0;
     int previous = 0;
     for (const char* c = l->text; *c && j->count < PICTURE_GLYPHS;) {
@@ -3240,7 +3254,7 @@ static int picture_layout(picture_job* j)
         if (previous && index)
             pen += stbtt_GetGlyphKernAdvance(&f->info, previous, index) * f->scale * gs;
         if (cp != ' ') {
-            const glyph_field* g = field(PC_UI_TEXT_PICTURES, drawn);
+            const glyph_field* g = field_of(slot, path, drawn);
             if (g) {
                 j->glyph[j->count] = g, j->pen[j->count] = pen, j->gs[j->count++] = gs;
                 x0 = fminf(x0, pen + g->x0 * gs), x1 = fmaxf(x1, pen + g->x1 * gs);
@@ -3254,14 +3268,14 @@ static int picture_layout(picture_job* j)
     if (!j->count || x1 <= x0)
         return 0;
     float want = (l->box[2] - l->box[0]) * fmaxf(l->size, 0.1f);
-    j->s = want / ((x1 - x0) * st->stretch);
-    j->bold = st->embolden * SDF_EM;
-    float sx = j->s * st->stretch, mid = (l->box[1] + l->box[3]) * 0.5f, centre = (l->box[0] + l->box[2]) * 0.5f;
+    j->s = want / ((x1 - x0) * j->stretch);
+    j->bold = (l->embolden_set ? l->embolden : st->embolden) * SDF_EM;
+    float sx = j->s * j->stretch, mid = (l->box[1] + l->box[3]) * 0.5f, centre = (l->box[0] + l->box[2]) * 0.5f;
     j->base = mid + cap->top * j->s * 0.5f;
     float ink0 = centre - (x1 - x0) * sx * 0.5f - x0 * sx; /* the origin of pen 0 */
     for (int i = 0; i < j->count; i++)
         j->pen[i] = ink0 + j->pen[i] * sx;
-    float pad = 3.0f + fmaxf(j->bold, 0.0f) * j->s;
+    float pad = 3.0f + fmaxf(j->bold, 0.0f) * j->s + (l->glow_pass ? ceilf(fmaxf(l->glow_radius, 0.0f)) : 0.0f); /* (a halo's image holds its reach) */
     j->x = floorf(centre - (x1 - x0) * sx * 0.5f - pad);
     j->y = floorf(j->base - top * j->s - pad);
     j->w = (int)ceilf(centre + (x1 - x0) * sx * 0.5f + pad - j->x);
@@ -3352,6 +3366,83 @@ static int picture_image_key(int image, uint64_t* key, int* w, int* h)
     return ok;
 }
 
+/* The words' coverage at a point (PS1 pixels) of the line's layout: 0..1 across an edge `step` wide. */
+static float picture_cover(const picture_job* job, float xo, float yo, float step)
+{
+    float sx = job->s * job->stretch, best = -1e9f;
+    for (int i = 0; i < job->count; i++) {
+        const glyph_field* g = job->glyph[i];
+        float gs = job->gs[i], fx = (xo - job->pen[i]) / (sx * gs), fy = (job->base - yo) / (job->s * gs);
+        if (fx < g->x0 - SDF_PAD || fx > g->x1 + SDF_PAD)
+            continue;
+        best = fmaxf(best, (distance_plain(g, fx, fy) + job->bold) * fminf(job->s * gs, sx * gs));
+    }
+    return fminf(fmaxf(0.5f + best / step, 0.0f), 1.0f);
+}
+
+/* The line's glow: its words' coverage blurred (a Gaussian whose reach, 3 sigma, is glow_radius) and taken through 1 - exp(-4 strength x blur) (a thin stroke still
+ * lights up and a thick one saturates), as a soft texel in the glow colour. Computed on a grid of half PS1 pixels (a halo is smooth) over the image and the reach
+ * around it, then sampled bilinearly at the image's texels. */
+static int picture_glow_render(const picture_job* job, int factor, uint32_t* out)
+{
+    const pc_ui_picture_line* l = &job->line;
+    const float cs = 0.5f, sigma = fmaxf(l->glow_radius / 3.0f, 0.05f) / cs;
+    int reach = (int)ceilf(l->glow_radius / cs), gw = (int)ceilf((float)job->w / cs) + 2 * reach + 2, gh = (int)ceilf((float)job->h / cs) + 2 * reach + 2;
+    float* grid = malloc(sizeof(float) * (size_t)gw * (size_t)gh * 2);
+    int taps = (int)ceilf(sigma * 3.0f);
+    float* kernel = malloc(sizeof(float) * (size_t)(2 * taps + 1));
+    if (!grid || !kernel) {
+        free(grid), free(kernel);
+        return 0;
+    }
+    float* tmp = grid + (size_t)gw * (size_t)gh, total = 0.0f;
+    for (int k = -taps; k <= taps; k++)
+        total += kernel[k + taps] = expf(-0.5f * (float)(k * k) / (sigma * sigma));
+    for (int k = 0; k <= 2 * taps; k++)
+        kernel[k] /= total;
+    float ox = job->x - (float)reach * cs - cs, oy = job->y - (float)reach * cs - cs; /* the grid's origin: sample (gx, gy) at ox + (gx + 0.5) cs */
+    for (int gy = 0; gy < gh; gy++)
+        for (int gx = 0; gx < gw; gx++)
+            grid[gy * gw + gx] = picture_cover(job, ox + ((float)gx + 0.5f) * cs, oy + ((float)gy + 0.5f) * cs, cs);
+    for (int gy = 0; gy < gh; gy++)
+        for (int gx = 0; gx < gw; gx++) {
+            float a = 0.0f;
+            for (int k = -taps; k <= taps; k++)
+                if (gx + k >= 0 && gx + k < gw)
+                    a += kernel[k + taps] * grid[gy * gw + gx + k];
+            tmp[gy * gw + gx] = a;
+        }
+    for (int gy = 0; gy < gh; gy++)
+        for (int gx = 0; gx < gw; gx++) {
+            float a = 0.0f;
+            for (int k = -taps; k <= taps; k++)
+                if (gy + k >= 0 && gy + k < gh)
+                    a += kernel[k + taps] * tmp[(gy + k) * gw + gx];
+            grid[gy * gw + gx] = 1.0f - expf(-4.0f * fmaxf(l->glow_strength, 0.0f) * a);
+        }
+    uint16_t colour = picture_555(l->glow_colour);
+    float inv = 1.0f / (float)factor;
+    int w = job->w * factor, rows = job->h * factor;
+    for (int y = 0; y < rows; y++) {
+        float gy = (job->y + ((float)y + 0.5f) * inv - oy) / cs - 0.5f;
+        int y0 = (int)floorf(gy);
+        float fy = gy - (float)y0;
+        for (int x = 0; x < w; x++) {
+            float gx = (job->x + ((float)x + 0.5f) * inv - ox) / cs - 0.5f;
+            int x0 = (int)floorf(gx);
+            float fx = gx - (float)x0, v = 0.0f;
+            for (int k = 0; k < 4; k++) {
+                int px = x0 + (k & 1), py = y0 + (k >> 1);
+                if (px >= 0 && px < gw && py >= 0 && py < gh)
+                    v += grid[py * gw + px] * ((k & 1) ? fx : 1.0f - fx) * ((k >> 1) ? fy : 1.0f - fy);
+            }
+            out[y * w + x] = pc_ui_dist_soft(v, colour);
+        }
+    }
+    free(grid), free(kernel);
+    return 1;
+}
+
 static int picture_image_render(int image, int factor, uint32_t* out)
 {
     pthread_mutex_lock(&picture_lock);
@@ -3363,7 +3454,9 @@ static int picture_image_render(int image, int factor, uint32_t* out)
     picture_job job = *j;
     pthread_mutex_unlock(&picture_lock);
     const pc_ui_picture_line* l = &job.line;
-    float inv = 1.0f / (float)factor, sx = job.s * pc_ui_text_styles[PC_UI_TEXT_PICTURES].stretch;
+    if (l->glow_pass)
+        return picture_glow_render(&job, factor, out);
+    float inv = 1.0f / (float)factor, sx = job.s * job.stretch;
     unsigned average = picture_average(l);
     float mix = fminf(fmaxf(l->strength, 0.0f), 1.0f);
     int w = job.w * factor, rows = job.h * factor;

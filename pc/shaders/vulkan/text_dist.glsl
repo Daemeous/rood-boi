@@ -37,6 +37,12 @@ float text_colour(uint t, float d, float w, uint clut, out vec3 colour, out uint
         return word == 0u ? 0.0 : body;
     }
     uint mode = (t >> 28) & 3u, hi = (t >> 23) & 15u, lo = (t >> 19) & 15u;
+    if (mode == 3u) { // soft (a glow's halo): the colour in bits 27-14 (r 5, g 5, b 4), the distance bits an alpha
+        uint b4 = (t >> 24) & 15u;
+        word = ((t >> 14) & 31u) | (((t >> 19) & 31u) << 5) | (((b4 << 1) | (b4 >> 3)) << 10);
+        colour = rgb(word);
+        return clamp(0.5 + d / 64.0, 0.0, 1.0);
+    }
     int cx = int(clut & 63u) * 16, cy = int((clut >> 6) & 511u);
     if (mode == 2u) { // a label: its outline colour (lo) into its lettering's (hi)
         uint b = fetch(cx + int(hi), cy);

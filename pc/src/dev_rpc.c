@@ -515,7 +515,7 @@ extern int pc_hw_set_scale(int scale) __attribute__((weak));
 extern int pc_hw_active __attribute__((weak)), pc_hw_scale __attribute__((weak));
 extern int pc_gl_filter __attribute__((weak)), pc_gl_aspect __attribute__((weak));
 extern int pc_gim_text __attribute__((weak)); /* gim_text.cpp */
-extern float pc_gim_text_size __attribute__((weak)), pc_gim_text_gradient __attribute__((weak)), pc_gim_text_caps __attribute__((weak));
+extern float pc_gim_text_size __attribute__((weak)), pc_gim_text_gradient __attribute__((weak)), pc_gim_text_caps __attribute__((weak)), pc_gim_text_glow __attribute__((weak));
 extern char pc_gim_text_fill[1024] __attribute__((weak));
 extern int pc_gim_text_fill_force __attribute__((weak));
 extern int pc_gl_aa __attribute__((weak));
@@ -2393,7 +2393,7 @@ static void handle_method(int fd, const char* request)
                 pc_ui_bubble_outline = (float)outline;
             if (real_value(member(params, "ui_wire_width"), &outline) && outline >= 0 && outline <= 8)
                 pc_ui_wire_width = (float)outline;
-            /* GIM pictures of text as real text (gim_text.cpp): gim_text 0/1, gim_text_size 0.1..3, gim_text_gradient 0..1, gim_text_caps 0..1, gim_text_bold 0..2,
+            /* GIM pictures of text as real text (gim_text.cpp): gim_text 0/1, gim_text_size 0.1..3, gim_text_gradient 0..1, gim_text_glow 0..5, gim_text_caps 0..1, gim_text_bold 0..2,
              * gim_text_font (a TrueType file; "" the default). */
             if (&pc_gim_text) {
                 if (number_value(member(params, "gim_text"), &n))
@@ -2404,6 +2404,8 @@ static void handle_method(int fd, const char* request)
                     pc_gim_text_size = (float)outline;
                 if (real_value(member(params, "gim_text_gradient"), &outline) && outline >= 0 && outline <= 1)
                     pc_gim_text_gradient = (float)outline;
+                if (real_value(member(params, "gim_text_glow"), &outline) && outline >= 0 && outline <= 5)
+                    pc_gim_text_glow = (float)outline;
                 if (real_value(member(params, "gim_text_caps"), &outline) && outline >= 0 && outline <= 1)
                     pc_gim_text_caps = (float)outline;
                 /* gim_text_fill: the global fill of the words, `[STEM-or-glob=]type [angle=N] [scope=block|line] [strength=X] | pos:rrggbb ...; ...` ("" none);
@@ -2752,11 +2754,11 @@ static void handle_method(int fd, const char* request)
                 - 1;
         if (used < (int)sizeof result - 160)
             used += snprintf(result + used - 1, sizeof result - used + 1,
-                        ",\"ui_lines\":\"%s\",\"ui_outline_boost\":%d,\"ui_bubbles\":\"%s\",\"ui_bubble_outline\":%g,\"ui_wire_width\":%g,\"gim_text\":%d,\"gim_text_size\":%g,\"gim_text_gradient\":%g,\"gim_text_caps\":%g}",
+                        ",\"ui_lines\":\"%s\",\"ui_outline_boost\":%d,\"ui_bubbles\":\"%s\",\"ui_bubble_outline\":%g,\"ui_wire_width\":%g,\"gim_text\":%d,\"gim_text_size\":%g,\"gim_text_gradient\":%g,\"gim_text_glow\":%g,\"gim_text_caps\":%g}",
                         pc_ui_lines_names[pc_ui_lines ? 1 : 0], pc_ui_outline_boost,
                         pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0], pc_ui_bubble_outline, pc_ui_wire_width,
                         &pc_gim_text ? pc_gim_text : 0, &pc_gim_text_size ? (double)pc_gim_text_size : 0.0, &pc_gim_text_gradient ? (double)pc_gim_text_gradient : 0.0,
-                        &pc_gim_text_caps ? (double)pc_gim_text_caps : 0.0)
+                        &pc_gim_text_glow ? (double)pc_gim_text_glow : 0.0, &pc_gim_text_caps ? (double)pc_gim_text_caps : 0.0)
                 - 1;
         extern int pc_hw_scale_setting __attribute__((weak));
         if (pc_aa_string && used < (int)sizeof result - 200)

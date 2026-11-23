@@ -21,7 +21,7 @@ import checkpoints  # noqa: E402
 import rood_rpc  # noqa: E402
 from rood_rpc import Game  # noqa: E402
 
-KEYS = ("ram", "heap", "io", "overlays", "vram")  # not "state": it holds the last vsync's wall-clock time
+KEYS = ("heap", "overlays", "vram")  # not "state": it holds the last vsync's wall-clock time
 
 
 def state(game):

@@ -151,6 +151,7 @@ data	BATTLE/BATTLE.PRG	D_800EAA54	vs_battle_emptyStatusString	high	G00146
 data	BATTLE/BATTLE.PRG	D_800EABAA	vs_battle_targetSelectionStep	high	G00147
 data	BATTLE/BATTLE.PRG	D_800EB588	vs_event_textBoxFrameStyles	high	G00148
 data	BATTLE/BATTLE.PRG	D_800EB7B4	vs_render_compactGlyphWidths	high	G00150
+data	BATTLE/BATTLE.PRG	D_800EB7D4	vs_render_compactGlyphIndices	med	S9
 data	BATTLE/BATTLE.PRG	D_800EB9AF	vs_battle_hudHidden	high	G00157
 data	BATTLE/BATTLE.PRG	D_800EB9B0	vs_battle_hudSlideOffset	high	G00158
 data	BATTLE/BATTLE.PRG	D_800EB9B4	vs_effects_screenEffectOverlay	high	G00159

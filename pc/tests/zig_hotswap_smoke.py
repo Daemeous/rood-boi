@@ -28,10 +28,10 @@ DEV = ROOT / "pc/build/dev64"
 # (vs_actors_transformRootOffset, game/battle/actor_transform.zig offsetToWorld).
 FIXTURE = "battle_44F14"
 FUNCTION = "vs_actors_transformRootOffset"
-# Two bytes at the top of guest RAM, which nothing uses: the edited function writes the first; the
-# live-frame probe uses the second to call VSync once.
-MARK, ONCE = 0x801FFFF0, 0x801FFFF1
-STATE_KEYS = ("ram", "heap", "io", "state", "overlays", "vram", "vsync")
+# Two bytes at the top of the port arena (ROOD_PORT_BASE + ROOD_PORT_SIZE - 0x10), which nothing uses (the allocator bumps from the
+# bottom) and which a snapshot saves: the edited function writes the first; the live-frame probe uses the second to call VSync once.
+MARK, ONCE = 0x100140000 - 0x10, 0x100140000 - 0x0F
+STATE_KEYS = ("heap", "state", "overlays", "vram", "vsync")
 FRAMES = 600
 
 
@@ -132,7 +132,7 @@ def main():
             # vsync via pc_tick_resumed, not midway through the original poll.
             game.rewind()
             game.run(FRAMES)
-            check(game.read(MARK, 2) == bytes(2), "the spare guest bytes are untouched by the unmodified game")
+            check(game.read(MARK, 2) == bytes(2), "the spare arena bytes are untouched by the unmodified game")
             baseline_path = work / "baseline.snap"
             game.call("snapshot", action="save", path=str(baseline_path))
             baseline_end = snapshot_diff.read(baseline_path)
@@ -167,8 +167,8 @@ def main():
                         break
                 check(first is not None, "edited Zig implementation executed within the witnessed recipe")
                 check(before_frame <= first <= game.status()["vsync"],
-                      f"edited write seen: {function} wrote guest byte {MARK:#x} at frame {first}")
-                timings.append(dict(cycle=cycle + 1, pid=pid, function=function, field=f"ram {MARK:#x}",
+                      f"edited write seen: {function} wrote arena byte {MARK:#x} at frame {first}")
+                timings.append(dict(cycle=cycle + 1, pid=pid, function=function, field=f"port {MARK:#x}",
                                     frame=first, frames_until_execution=frames,
                                     edit_s=edit_seconds, build_s=build_seconds, reload_s=reload_seconds,
                                     first_execution_s=time.monotonic() - execution_start,

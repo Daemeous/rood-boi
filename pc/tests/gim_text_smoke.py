@@ -322,6 +322,20 @@ def main():
         columns = np.flatnonzero(diff.any(axis=0))
         centre = (columns.min() + columns.max()) / 2
         check(abs(centre - a.shape[1] / 2) < 0.02 * a.shape[1], f"16:9 sample {i}: the words are centred in the view as the picture is ({centre:.0f} of {a.shape[1]})")
+    # A glow (the fill's `glow=`): the quote with a red halo behind white words (the quote's own pack, its fill line replaced): the halo is made below the words in
+    # the ordering table, so the words stay white where they are, and the halo shows around them.
+    import re
+    glow = out / "glow"
+    shutil.copytree(pack, glow)
+    text = (glow / "JO.txt").read_text()
+    (glow / "JO.txt").write_text(re.sub(r"fill .*", "fill flat glow=ff2010 glow_radius=6 glow_strength=1.5 | ffffff", text))
+    gq = quote_frames(out / "qg", "font", glow)
+    best = max(gq, key=lambda f: int((load(f)[..., 1] > 200).sum()))
+    img = load(best).astype(int)
+    white = int((img[..., 1] > 200).sum())
+    halo = (img[..., 0] > 80) & (img[..., 1] < 60)
+    check(white > 20000, f"glow: the words stay white under their halo ({white} pixels)")
+    check(int(halo.sum()) > 20000, f"glow: the red halo shows around the words ({int(halo.sum())} pixels)")
     print("FAIL" if failures else "PASS")
     return 1 if failures else 0
 

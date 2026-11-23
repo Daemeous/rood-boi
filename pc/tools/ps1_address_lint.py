@@ -37,7 +37,8 @@ PY_RULES = {
         r"|\bpc_(?:actor|object|room)_offset_|\bROOD_NM\b|\b0[xX](?:80|[aA]0|1[fF]80)[0-9a-fA-F]{6}\b"),
 }
 RULES = {
-    "ps1_address": re.compile(r"\b0[xX](?:80|[aA]0)[0-9a-fA-F]{6}\b"),
+    # (an integer suffix counts; the round words 0x80000000 and 0xA0000000 are bit masks of GPU words, not addresses)
+    "ps1_address": re.compile(r"\b0[xX](?:80|[aA]0)(?!000000[uUlL]{0,3}\b)[0-9a-fA-F]{6}[uUlL]{0,3}\b"),
     # the scratchpad proper, 0x1F800000-0x1F8003FF (T14); the I/O page above it (0x1F801000..: SPU, DMA and root counter
     # registers) is the SDK layer's (T16, T18, T21), counted apart
     "scratchpad": re.compile(r"\b0[xX]1[fF]800[0-3][0-9a-fA-F]{2}\b|\bgetScratchAddr\b"),
@@ -57,7 +58,7 @@ RULES = {
     # memory lane (pc/docs/plans/2026-11-16-memory-lane.md): code that reaches a field by its PS1 byte offset (S1), and
     # references to the 2 MB RAM block, the game heap's address and the page that stands for PS1 address 0 (S9)
     "byte_offset_access": re.compile(r"\bpsx\.(?:fieldAt|byteAt)\(|\bPSX_OFFSET\("),
-    "ram_reference": re.compile(r"\bROOD_GUEST_RAM_(?:BASE|SIZE)\b|\bguest_ram_base\b|\bVS_MAIN_HEAP_ADDRESS\b|\brood_null_page\b|\bmap_guest\s*\("),
+    "ram_reference": re.compile(r"\bROOD_GUEST_RAM_(?:BASE|SIZE)\b|\bROOD_PS1_RAM_SIZE\b|\bguest_ram_base\b|\bVS_MAIN_HEAP_ADDRESS\b|\brood_null_page\b|\bmap_guest\s*\("),
     # a struct member still called by its offset (pc/tools/import_fields.py gives them names), used as .unkNN or ->unkNN
     "unnamed_field": re.compile(r"(?<![.])(?:\.|->)unk[0-9A-Fa-f]+\b"),
     "guest_pointer_field": re.compile(r"\bpsx_ptr\("),
@@ -107,7 +108,11 @@ ONLY_UNDER = {"vram_frame_readers": ("pc/src/game/TITLE/", "pc/src/game/MENU/MEN
               "cpu_raster": ("pc/src/boot_polygons.inc", "pc/src/boot_lines.inc")} # (the files are gone: 0)
 # Rules that leave out paths: the SDK's own libgpu and the walker that draws the packets (they are what the game's
 # packets are for, T16), and the typed items' lowering to packets (it goes when a renderer takes items directly).
-SKIP_FOR = {"ordering_table": ("pc/src/game/SLUS_010.40/libgpu/",),
+SKIP_FOR = {# the PS1 build's own register map and SDK sources (the decompilation matches them; the PC build compiles none of them: the sound
+            # driver reaches the chip through hw.h's SPU_REG and pc_spu_regs, and the root counters, pad and MDEC-DMA calls are replaced)
+            "io_register": ("pc/src/game/include/hw.h", "pc/src/game/SLUS_010.40/libapi/COUNTER.c", "pc/src/game/SLUS_010.40/libpad/PADMAIN.c",
+                            "pc/src/game/SLUS_010.40/libpad/WAITRC2.c", "pc/src/game/TITLE/TITLE.PRG/libpress/LIBPRESS.c"),
+            "ordering_table": ("pc/src/game/SLUS_010.40/libgpu/",),
             "vram_direct": ("pc/src/boot_runtime.c", "pc/src/gpu_hw.c", "pc/src/hw_cmd.c", "pc/src/renderer_rq.c", "pc/src/boot_window.c", "pc/src/vk_hw.c", "pc/src/vram_texels.h"),
             "vram_pointer": ("pc/src/boot_runtime.c", "pc/src/gpu_hw.c"),
             "vram_sdk_calls": ("pc/src/game/SLUS_010.40/libgpu/", "pc/src/boot_sdk.c"),

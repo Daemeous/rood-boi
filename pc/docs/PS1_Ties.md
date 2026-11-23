@@ -13,7 +13,7 @@ most of the game).
 ## The short version
 
 The game's logic is native x86-64 code, and no MIPS code runs. But it is still a PS1 program that has
-been given a fake PS1 to run on. It keeps a 2 MB "RAM" at the PS1's own addresses and builds its
+been given a fake PS1 to run on. It once kept a 2 MB "RAM" at the PS1's own addresses (gone since S9 step 6) and builds its
 pictures as GPU command packets in that RAM. It stops at every vertical blank to hand control to the
 host, and it reads its disc by sector number. It talks to the sound chip through chip registers, and it
 sees the controller as a PS1 pad. The host (renderer, audio, input, tools) is modern and sits around
@@ -428,17 +428,17 @@ T15 and T13.
 
 ## T12. Fixed RAM, a fixed heap, a stack below 2 GB
 
-**What it is.** The host maps 2 MB at `0x80000000` (RAM), 1 KB scratchpad at `0x1F800000` and an I/O
-page that holds sound chip registers. The original executable and overlays load into it. The game's
-own heap is a free-list allocator inside that RAM, initialised at `0x8010C000` with `0xF2000` bytes
-(about 970 KB) in the main program, BATTLE's initialiser and ENDING. The game runs on a 64 MB stack
-mapped at a fixed address below 2 GB so pointers to locals fit in 4 bytes.
+**What it is (S9 step 6, 2026-11-22).** The 2 MB block at `0x80000000` is gone: the host no longer maps it,
+the original executable's data is no longer copied anywhere (every import is a native object), and the
+BATTLE/TITLE/ENDING overlay slot is a native buffer of the program. What stays: an I/O page that holds
+sound chip registers (T18b), the arenas above 4 GB (the game heap, initialised with `0xF2000` bytes, and
+the port arena), and a 64 MB game stack at a fixed address below 2 GB.
 
 **Player feels.** Hard budgets: anything that does not fit the PS1's memory cannot exist, which limits
 what content the game can hold.
 
 **Evidence.**
-- `pc/src/boot_runtime.c`: `main` (`map_guest(0x80000000, 0x200000)`), `reserve_game_stack`
+- `pc/src/boot_runtime.c`: `main` (`map_fixed` of the arenas), `reserve_game_stack`
   (`GAME_STACK_BASE`), `run_game_on_low_stack`.
 - `pc/src/game/SLUS_010.40/main.c` line near `vs_main_initHeap((vs_main_HeapHeader*)0x8010C000,
   0xF2000)` and the same call in `BATTLE/INITBTL.PRG/18.c` and `ENDING/ENDING.PRG/D4.c`.

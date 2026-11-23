@@ -56,7 +56,7 @@ from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 
 CAPABILITIES = ["game.pause", "camera", "post", "ui.hide", "capture", "input.capture"]
-DIGEST = ("ram", "heap", "io", "vram", "overlays", "vsync")
+DIGEST = ("heap", "vram", "overlays", "vsync")
 
 
 def png_size(path):

@@ -42,6 +42,7 @@ the game.
 | [Asap Condensed](https://github.com/Omnibus-Type/Asap) Bold | `AsapCondensed/AsapCondensed-Bold.ttf` | OFL 1.1 | The Asap Project Authors |
 | [Chakra Petch](https://github.com/m4rc1e/Chakra-Petch) Bold | `ChakraPetch/ChakraPetch-Bold.ttf` | OFL 1.1 | The Chakra Petch Project Authors |
 | [Alegreya](https://github.com/huertatipografica/Alegreya) (variable, default instance) | `Alegreya/Alegreya[wght].ttf` | OFL 1.1 | The Alegreya Project Authors |
+| [Marcellus](https://github.com/google/fonts/tree/main/ofl/marcellus) | `Marcellus/Marcellus-Regular.ttf` | OFL 1.1 (Reserved Font Name "Marcellus") | Astigmatic (2012) |
 
 **Kenney Input Prompts** (`KenneyInputPrompts/`), version 1.5A by
 [Kenney](https://kenney.nl/assets/input-prompts), **CC0 1.0** (`License.txt`):

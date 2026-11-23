@@ -1,7 +1,7 @@
 //! The port arena (memory lane S6): where the decoded objects of the game's files live. Never the game heap, so decoding
 //! does not change the game's allocation pattern (the raw file buffers stay in the heap exactly as the original allocated
 //! and freed them). A fixed window range ROOD_PORT_BASE .. + ROOD_PORT_SIZE (psx_types.h), mapped with the rest of the
-//! guest window; the snapshot, the Oracle's digest and the in-process rewind save all of it as the "port" range, so a decoded
+//! arenas; the snapshot, the Oracle's digest and the in-process rewind save all of it as the "port" range, so a decoded
 //! object survives them like any game state, and every pointer in it (into the heap, into other port objects) stays
 //! valid because both arenas are at fixed addresses.
 //!

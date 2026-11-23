@@ -318,7 +318,7 @@ extern union {
 extern u_int* _menuBgUnpackedBuf;
 extern u_char D_800EB708[172]; /* two bits per glyph pair: index < 26 * 26, read at index >> 2 */
 extern u_char vs_render_compactGlyphWidths[32]; /* two 4-bit widths per byte, by glyph >> 1 */
-extern u_char D_800EB7D4[60];
+extern u_char vs_render_compactGlyphIndices[60];
 extern int* vs_menu_sceneNotificationBuffer;
 extern u_int D_800EBBB8[];
 extern u_int D_800EBBC0[];

@@ -46,10 +46,8 @@ pub fn vs_actors_placeActorInRoom(actorId: c_int, placement: ?*v.vs_field_ActorP
         } else {
             if (tileType >= 2) {
                 const anchorPtr = c.func_800A4A24(tileType);
-                var anchorAddr: usize = @intFromPtr(anchorPtr);
-                // No matching platform: the original reads through NULL, i.e. PS1 address 0, mapped at 0x80000000.
-                if (anchorAddr == 0) anchorAddr = 0x8000_0000;
-                const anchor: [*]align(1) const c_int = @ptrFromInt(anchorAddr);
+                // No matching platform: the original reads through NULL, i.e. the zeroes of PS1 address 0 (psx.nullObject).
+                const anchor: [*]align(1) const c_int = if (anchorPtr) |p| @ptrCast(p) else @ptrCast(psx.nullObject(c_int));
                 psx.fieldAt(c_int, &actor.unk0.position.vx, 0).* = anchor[0];
                 psx.fieldAt(c_int, &actor.unk0.position.vz, 0).* = anchor[1];
                 psx.fieldAt(c_int, &actor.unk17EC, 0).* = anchor[0];

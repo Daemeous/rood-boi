@@ -52,7 +52,7 @@ from rood_rpc import Game, RpcError  # noqa: E402
 FRAMES = 120
 RUNNING_RELOADS = 4
 LEAK_LIMIT = 64  # MB of resident memory per reload
-STATE_KEYS = ("ram", "heap", "io", "state", "overlays", "vram")
+STATE_KEYS = ("heap", "state", "overlays", "vram")
 DEV = ROOT / "pc/build/dev64"
 failures = []
 

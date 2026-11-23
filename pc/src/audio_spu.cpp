@@ -1,7 +1,7 @@
 /* Host sound chip for the native build: the vendored PsyCross software SPU
  * (pc/third_party/psycross-audio), driven two ways, as on the PS1:
  *  - the game's sound driver writes voice/key/mode registers directly
- *    (pc/src/game/include/hw.h); those land in a plain memory page at 0x1F801000 and
+ *    (pc/src/game/include/hw.h); those land in the array pc_spu_regs (the driver's, hw.h) and
  *    are synchronised into the core by pc_spu_sync_registers();
  *  - the SDK library calls (SpuWrite, reverb, ...) are replaced on PC by
  *    pc/src/audio_libspu.c, which calls the pc_spu_* helpers below.
@@ -39,8 +39,9 @@ static uint16_t last_mode[6];
 /* Main volume and SPUCNT as last applied; 0xffff forces the next sync. */
 static uint16_t last_main[2] = { 0xffff, 0xffff }, last_control = 0xffff;
 
-/* 0x1F801C00: 24 voices x 16 bytes, then the common registers. */
-static volatile uint16_t* const regs = reinterpret_cast<volatile uint16_t*>(0x1F801C00);
+/* The chip's registers as the game's sound driver writes them (hw.h SPU_REG): 24 voices x 16 bytes, then the common registers. */
+extern "C" uint16_t pc_spu_regs[0x100]; /* defined by the sound driver (25AC.c): game state, so a save state holds it */
+static volatile uint16_t* const regs = pc_spu_regs;
 
 extern "C" {
 PsyX_SfxOverrideFn g_PsyX_SfxOverride = nullptr;
@@ -198,6 +199,8 @@ extern "C" void pc_spu_render(short* out, int frames)
 /* A reset (SpuStart, also on every return to the title) clears the core's
  * voices, masks and main volume, so forget the register values last applied:
  * the game often rewrites identical values, which must still take effect. */
+/* SPUCNT, as SpuStart leaves it (the driver then edits it by hw.h's SPU_CONTROL). */
+extern "C" void pc_spu_set_control(unsigned short value) { pc_spu_regs[0x1aa / 2] = value; }
 extern "C" void pc_spu_reset(void)
 {
     SoundLock lock;

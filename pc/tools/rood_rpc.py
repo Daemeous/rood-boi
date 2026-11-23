@@ -461,6 +461,33 @@ def _reap_launched():
 atexit.register(_reap_launched)
 
 
+def _started_near_now(window=3.0):
+    """For a game that died of SIGKILL: the time, and the other processes that started within `window` seconds of now (or of the
+    last seconds before it), by pid, parent and command, so a killer that was just launched (a build, a sweep, a cleanup) can be named.
+    Linux only; "" elsewhere."""
+    try:
+        ticks = os.sysconf("SC_CLK_TCK")
+        with open("/proc/uptime") as f:
+            up = float(f.read().split()[0])
+        found = []
+        for entry in os.listdir("/proc"):
+            if not entry.isdigit() or int(entry) == os.getpid():
+                continue
+            try:
+                with open(f"/proc/{entry}/stat", "rb") as f:
+                    fields = f.read().rsplit(b")", 1)[1].split()
+                age = up - int(fields[19]) / ticks  # seconds since it started
+                if 0 <= age <= window:
+                    with open(f"/proc/{entry}/cmdline", "rb") as f:
+                        cmd = f.read().replace(b"\0", b" ").decode(errors="replace")[:100]
+                    found.append(f"{entry}(ppid {fields[1].decode()}, {age:.1f}s ago) {cmd}")
+            except (OSError, IndexError, ValueError):
+                continue
+        return f" (at {time.strftime('%H:%M:%S')}; started in the last {window:.0f}s: " + ("; ".join(found) or "none") + ")"
+    except OSError:
+        return ""
+
+
 class Game:
     def __init__(self, path=DEFAULT_SOCKET, processes=()):
         self.path = path
@@ -592,7 +619,7 @@ class Game:
                 name = signal.Signals(-code).name
             except ValueError:
                 name = f"signal {-code}"
-            return f"the game was killed by {name}" + (", sent from outside: nothing in its log" if code == -9 else "")
+            return f"the game was killed by {name}" + (", sent from outside: nothing in its log" + _started_near_now() if code == -9 else "")
         return f"the game exited with status {code}"
 
     # ---- protocol ----

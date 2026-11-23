@@ -1429,6 +1429,7 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_text_descender_lift` | 1 | 0..1: the HUD digits (old-style figures: 3 4 5 7 9 descend) rise together by this much of the room their deepest descender lacks below the baseline, into the room above them, so the figures keep their shape; what is still lacking is squeezed (0: squeezed only, a 5's bowl flattened) |
 | `gim_text`, `gim_text_size`, `gim_text_caps` | 1, 1, 0.8 | with `ui_text font`, the pictures of text the game stores as images (GIM: the intro quote, the briefing pages, the staff cards) drawn as real text from the player's text pack (below): on/off, the words' width against the picture's line (1: as wide), the small capitals' height against the capitals' (0: none). The font, weight and spacing are the `pictures` style (`ui_text_pictures_font`, `_embolden`, `_stretch`, ...; Graphics > 2D / UI > HUD typography). A picture with no pack is drawn as the game draws it, and `ui_text original` always is |
 | `gim_text_gradient` | 1 | 0..1: how much of the fill's colour variation is used (0: the fill's average colour everywhere, 1: as the fill says) |
+| `gim_text_glow` | 1 | 0..5: how much of a fill's glow (below) shows: its strength times this (0: none). Also RPC key and the Graphics panel's "Glow" |
 | `gim_text_fill`, `gim_text_fill_force` | none, 0 | a fill (below) for pictures, set globally: `[NAME-or-glob=]fill; ...` (an entry with no `NAME=` is for every picture; `STAFF*=` for the staff cards); used where the picture's pack has no fill, or over the pack's too with `gim_text_fill_force 1`. Also settings RPC keys, and the Graphics panel's "Pictures of text (GIM)" (Fill, "Fill wins over the pack's"); live, no restart |
 | `ui_lines` | `joined` | 2D lines (GP0 0x40-0x5F: the map, the minimap, the targeting sphere, talk bubble outlines) at the internal resolution. `joined`: one PS1 pixel thick at any scale, joins closed, no light dots along outlines (below). `legacy`: the earlier one-pixel quads, for comparison |
 | `ui_outline_boost` | 0 | 2D lines (and vector bubble outlines) 0-3 output pixels thicker: a bolder inked look |
@@ -1468,6 +1469,21 @@ number, or a lone `rrggbb` for a flat fill. The measuring tool writes a flat fil
 a left-to-right `linear` one fitted (up to five stops) to the median ink colour of each column (the staff cards: a bright band through the middle), and marks it
 `measured`. `gim_text_fill` (settings, RPC `gim_text_fill`, the Graphics panel) sets one for all pictures or per name or glob, below the pack's own fill or,
 with `gim_text_fill_force`, over it.
+
+A fill may carry a **glow**, a soft halo behind the words that any pack can use: `glow=rrggbb` (its colour; this alone gives radius 4), `glow_radius=N` (how far it
+reaches, in the picture's pixels; the halo is the words blurred by a Gaussian whose reach, three sigma, is this) and `glow_strength=X` (0..: how bright; the halo's
+alpha is `1 - exp(-4 X b)` of the colour, b the blurred coverage: a thin stroke still glows and a thick one saturates), e.g.
+`fill flat glow=628cf8 glow_radius=5.5 glow_strength=0.6 | bdded5`. It is drawn as a carrier of its own below the words (the same fades and wipes apply to it) and
+scaled by `gim_text_glow`; with no `glow` there is none. The measuring tool fits all three to the halo of a picture that has one.
+
+**The loading screen** ("NOW LOADING...") is a picture in the executable, uploaded into the frame buffers with no packet to key on. `python3 pc/tools/gim_text_pack.py
+NOWLOADING` measures it from `data/SLUS_010.40` (the ink's box and colour, and a glow fitted to the halo around it) into the pack `NOWLOADING.txt` (its words, "NOW
+LOADING...", are written there for you); with `ui_text font` and that pack the game leaves the upload out and draws the line as carriers at the picture's place on the
+screen (its centred 126 x 20 box), the halo below the words. At 16:9 the original upload is stretched across the window by the port's display of the frame buffer;
+the words are not (they are drawn in the picture's own 4:3 place, in the font's proportions). Original text, or no pack, loads the picture as before.
+The picture's own lettering is thin, wide capitals of a flared humanist sans (like Optima); the pack names the font that sets it: `font=FILE font_stretch=X font_embolden=EM`
+in its `fill` line (the file, its sideways stretch, its weight in ems; with none the `pictures` style's font), which the tool measures for `--font FILE` (default: Marcellus,
+`pc/third_party/fonts/Marcellus`, for the loading screen and the opening quote JO; the stretch makes the capitals as tall as the picture's, the weight as thick as its strokes). Any pack's fill may carry these keys.
 
 Nothing is shipped: each region a 2D primitive samples (texture page, CLUT,
 texel rectangle) is decoded from the game's own VRAM when drawn and
