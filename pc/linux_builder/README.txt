@@ -55,53 +55,13 @@ you build again. On a laptop with an NVIDIA GPU the game uses it
 automatically (ROOD_GPU=integrated keeps the default GPU).
 
 
-HD TEXTURE PACKS (optional)
----------------------------
-Both normal and Merlose builds support optional Vagrant Story texture packs
-with Vulkan or OpenGL. No packs are included or downloaded automatically.
-Without an installed pack, the game uses its original textures. You do not
-need RetroArch or DuckStation installed.
-
-First build the game, then extract your separately downloaded pack (for
-example with 7-Zip). Put it inside the built rood-boi folder, alongside
-play.sh, using the layout for that pack:
-
-* Classic Beetle PSX HW pack: rename the image folder to
-  texture-replacements. The CRC-named .png or .dds files go directly in it.
-* DuckStation pack: put its SLUS-01040 folder inside texture-replacements.
-  Keep SLUS-01040/replacements (the images) and config.yaml together.
-  Individual texupload-* and texpage-* image names must remain unchanged.
-* Beetle page-aligned pack: rename its image folder to
-  texture-replacements-pages. Keep these files separate from classic packs:
-  identical filenames refer to different VRAM regions.
-
-The folders are detected at startup and kept when you rebuild. Install one
-complete pack at a time when packs replace the same art; classic Beetle
-matches take priority over page/DuckStation matches. To keep a pack
-elsewhere, set ROOD_TEXTURE_PACK to its extracted root/image folder before
-starting; ROOD_TEXTURE_PACK_PAGES selects a separate Beetle page folder.
-Reduced-palette Beetle hashes are detected automatically.
-
-To compare with originals: F1 (or Escape), Graphics, "HD texture
-replacements". To use an HD font pack, also choose 2D / UI, Text, Original.
-Selecting a rebuilt font intentionally keeps that font instead.
-
-Tested DuckStation examples: diodiogod's Vagrant Story HD dialogue font
-(v0.4 beta, https://github.com/diodiogod/vagrant-story-hd-dialogue-font) and
-IceBullet's Vagrant Story PS1 HD pack. Download packs separately from their
-authors; they remain entirely optional components.
-
-Missing replacements keep original textures. Initial image loads/cache
-refills can briefly pause. Broad room, animation and palette coverage needs
-more playtesting. Native save-state loads need a room reload to restore
-texture matching; normal in-game saves are unaffected.
-
-Supported images: PNG and common DDS (RGB/RGBA/BGRA8, BC1/2/3/4/5 UNORM,
-BC7; base mip only). Legacy DuckStation vram-write hashes, JPEG/WebP,
-arbitrary upload-coalescing/copy-to-write cache options and uncommon DDS
-encodings are not supported. DDS and extended Beetle modes were checked
-with generated fixtures; the two DuckStation packs above were tested
-in-game. More details: pc/docs/HD_Textures.md in the downloaded source.
+HD TEXTURE PACKS
+----------------
+Not in this version. rood-boi's battle code was rewritten (in Zig) and its
+renderer changed, and the texture pack support needs redoing for it. If you
+installed a pack with an earlier builder, its folders (texture-replacements,
+texture-replacements-pages) are kept when you rebuild; this version just
+doesn't use them, and the game shows its original textures.
 
 
 SAVES AND MEMORY CARDS
