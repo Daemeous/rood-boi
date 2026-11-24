@@ -34,7 +34,7 @@ pub fn script_specialOp(script: [*c]u8, _: c_short) callconv(.c) c_int {
                 c.vs_battle_setStateFlag(0xB1, 1);
             }
         },
-        4 => c.vs_battle_setStateFlag(0xB1, psx.conv(u8, c.vs_actors_countActorsByDisposition(4))),
+        4 => c.vs_battle_setStateFlag(0xB1, psx.conv(u8, if (comptime @hasDecl(c, "vs_mod_countTeam")) c.vs_mod_countTeam(4) else c.vs_actors_countActorsByDisposition(4))),
         5 => c.func_800BAF6C(script[2]),
         6 => c.vs_main_freeHeapR(v.g.vs_event_chainedEventBuffer().*),
         7 => c.func_800BBE04(script[2]),

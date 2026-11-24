@@ -25,6 +25,8 @@ fn dropZud() void {
 /// free of 2..15 (vs_actors_createAuxiliaryActor). No free slot: vs_main_nop10(0x86) and it stops. Then the saved states take the
 /// hidden flags, and the ZUD buffer is freed.
 pub fn vs_field_spawnRoomActors() callconv(.c) void {
+    // Merlose joins on every way out, an empty spawn list (workshops) included (mod/hooks.h)
+    defer if (comptime @hasDecl(c, "vs_mod_spawnCallo")) c.vs_mod_spawnCallo();
     var slots: [16]c_int = undefined;
     // The C's data union and param keep their values from one entry to the next; param is uninitialised in the
     // original only for a first enemy whose facing is not 0..3 (0 here).

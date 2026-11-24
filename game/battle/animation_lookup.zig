@@ -13,7 +13,9 @@ fn table(p: ?*anyopaque) ?*Table {
 
 /// orig: vs_actors_findActorAnimationHeader (pc/src/game/BATTLE/BATTLE.PRG/40564.c)
 /// Finds animation `animation` of `actor`: its table (the return value; null when absent) and its frames (`frames`, NULL for an empty entry).
-pub fn findAnimation(actor_: ?*anyopaque, animation: c_int, frames: [*c][*c]u16) callconv(.c) ?*anyopaque {
+pub fn findAnimation(actor_: ?*anyopaque, requested: c_int, frames: [*c][*c]u16) callconv(.c) ?*anyopaque {
+    // Merlose's own jump/landing poses (mod/merlose.h, hooks.h)
+    const animation = if (comptime @hasDecl(c, "vs_mod_animSlot")) c.vs_mod_animSlot(actor_, requested) else requested;
     const actor: *align(1) v.D_800F4538_t = @ptrCast(actor_.?);
     var p: ?*Table = undefined;
     var idx: c_int = undefined;

@@ -15,6 +15,7 @@
 #include <memory.h>
 #include <stddef.h>
 #include <abs.h>
+#include "pc/src/game/BATTLE/BATTLE.PRG/mod/hooks.h"
 
 typedef struct {
     u_char mode;

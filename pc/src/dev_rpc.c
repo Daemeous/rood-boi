@@ -4244,6 +4244,136 @@ static void handle_method(int fd, const char* request)
             return;
         }
         reply(fd, id, result);
+    } else if (!strcmp(method, "trace")) {
+        /* The fight trace (fight_trace.c): {action: "start", path, frames (0: until
+         * stopped), note (any JSON string)}, {action: "stop"}; replies with the status. */
+        extern int pc_fight_trace_start(const char*, unsigned, const char*) __attribute__((weak));
+        extern void pc_fight_trace_stop(void) __attribute__((weak));
+        extern int pc_fight_trace_status(char*, int) __attribute__((weak));
+        char action[16] = "", to[512] = "", note[256] = "";
+        long long frames = 0;
+        if (!pc_fight_trace_start) {
+            fail(fd, id, -32000, "trace needs the battle build");
+            return;
+        }
+        if (params)
+            string_value(member(params, "action"), action, sizeof action);
+        if (!strcmp(action, "start")) {
+            if (!string_value(member(params, "path"), to, sizeof to) || !*to) {
+                fail(fd, id, -32602, "trace start needs a path");
+                return;
+            }
+            number_value(member(params, "frames"), &frames);
+            if (string_value(member(params, "note"), note + 1, sizeof note - 2)) {
+                note[0] = '"';
+                for (char* c = note + 1; *c; c++)
+                    if (*c == '"' || *c == '\\' || *c < ' ')
+                        *c = ' ';
+                strcat(note, "\"");
+            }
+            if (frames < 0 || !pc_fight_trace_start(to, (unsigned)frames, note)) {
+                fail(fd, id, -32000, "trace: cannot write that file");
+                return;
+            }
+        } else if (!strcmp(action, "stop"))
+            pc_fight_trace_stop();
+        pc_fight_trace_status(result, sizeof result);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "ashley")) {
+        /* Ashley setups for a test (encounter_lab.c pc_ashley_setup): {profile:
+         * "post-prologue" | "post-minotaur" | "all-spells" | "all-abilities" |
+         * "all-break-arts", max_hp, max_mp, strength, intelligence, agility (1..999)}. */
+        extern int pc_ashley_setup(int, const int[5], char*, int) __attribute__((weak));
+        static const char* profiles[] = { "", "post-prologue", "post-minotaur", "all-spells", "all-abilities",
+            "all-break-arts" };
+        static const char* names[5] = { "max_hp", "max_mp", "strength", "intelligence", "agility" };
+        char name[32] = "";
+        int profile = 0, stats[5] = { 0 };
+        if (!pc_ashley_setup) {
+            fail(fd, id, -32000, "ashley needs the battle build");
+            return;
+        }
+        if (params && string_value(member(params, "profile"), name, sizeof name) && *name) {
+            for (profile = 5; profile > 0 && strcmp(name, profiles[profile]); profile--)
+                ;
+            if (!profile) {
+                fail(fd, id, -32602, "ashley: unknown profile");
+                return;
+            }
+        }
+        for (int k = 0; k < 5; k++) {
+            long long v = 0;
+            if (params && number_value(member(params, names[k]), &v)) {
+                if (v < 1 || v > 999) {
+                    fail(fd, id, -32602, "ashley: stats are 1..999");
+                    return;
+                }
+                stats[k] = (int)v;
+            }
+        }
+        if (!pc_ashley_setup(profile, stats, result, sizeof result)) {
+            fail(fd, id, -32000, "ashley: not applied");
+            return;
+        }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "encounter")) {
+        /* The encounter lab (encounter_lab.c, pc/tools/encounter.py): {zone,
+         * room, records: [hex of 0x28-byte MPD enemy records], seed} arms the
+         * next arrival there (room_goto, enemies on) to spawn these instead of
+         * the room's enemies; {action: "cancel"}; otherwise the status. */
+        extern int pc_encounter_set(int, int, const unsigned char*, int, int, unsigned) __attribute__((weak));
+        extern void pc_encounter_cancel(void) __attribute__((weak));
+        extern int pc_encounter_status(char*, int) __attribute__((weak));
+        char action[16] = "";
+        if (!pc_encounter_set) {
+            fail(fd, id, -32000, "encounter needs the battle build");
+            return;
+        }
+        if (params)
+            string_value(member(params, "action"), action, sizeof action);
+        if (!strcmp(action, "cancel"))
+            pc_encounter_cancel();
+        else if (params && member(params, "records")) {
+            static unsigned char records[8 * 0x28];
+            long long zone = -1, room = -1, seed = 0;
+            int count = 0, seeded;
+            const char* at = member(params, "records");
+            if (!number_value(member(params, "zone"), &zone) || !number_value(member(params, "room"), &room)) {
+                fail(fd, id, -32602, "encounter needs zone and room");
+                return;
+            }
+            seeded = number_value(member(params, "seed"), &seed);
+            if (*at == '[')
+                at++;
+            while (*at && *at != ']') {
+                char hex[2 * 0x28 + 1];
+                const char* end;
+                while (*at == ' ' || *at == ',')
+                    at++;
+                if (*at != '"')
+                    break;
+                end = strchr(at + 1, '"');
+                if (!end || end - at - 1 != 2 * 0x28 || count == 8) {
+                    fail(fd, id, -32602, "records: up to 8 strings of 80 hex digits");
+                    return;
+                }
+                memcpy(hex, at + 1, 2 * 0x28);
+                hex[2 * 0x28] = 0;
+                for (int k = 0; k < 0x28; k++) {
+                    unsigned v;
+                    if (sscanf(hex + 2 * k, "%2x", &v) != 1) {
+                        fail(fd, id, -32602, "records: not hex");
+                        return;
+                    }
+                    records[count * 0x28 + k] = (unsigned char)v;
+                }
+                count++;
+                at = end + 1;
+            }
+            pc_encounter_set((int)zone, (int)room, records, count, seeded, (unsigned)seed);
+        }
+        pc_encounter_status(result, sizeof result);
+        reply(fd, id, result);
     } else if (!strcmp(method, "emissive")) {
         /* Emissive texels (emissive_editor.cpp parses the params object). */
         extern int pc_emissive_rpc(const char* params, char* out, int size) __attribute__((weak));

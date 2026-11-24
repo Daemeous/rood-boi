@@ -24,6 +24,7 @@
 #include <memory.h>
 #include <rand.h>
 #include "pc/src/psx_types.h"
+#include "pc/src/game/BATTLE/BATTLE.PRG/mod/hooks.h"
 #ifdef ROOD_PC
 #include "pc/src/widescreen.h"
 #include "pc/src/classic/classic_hook.h"

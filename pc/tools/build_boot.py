@@ -69,6 +69,36 @@ parser.add_argument(
     "symbol analysis on them (no ELF twins, no host gcc); the only mode on a "
     "Windows host (MSYS2)",
 )
+parser.add_argument(
+    "--callo",
+    action="store_true",
+    help="with the Callo Merlose companion mod (pc/src/game/BATTLE/BATTLE.PRG/mod; VS_CALLO and "
+    "VS_SELECTABLE_ROULETTE): its hooks in the game's C and Zig (game/battle, @hasDecl on the "
+    "unit's c_ module, mod/hooks.h); builds into *_callo",
+)
+parser.add_argument(
+    "--extras",
+    action="store_true",
+    help="the Merlose build's extras without Merlose: permanent stat-up items always give +4 "
+    "(VS_MAX_STAT_ITEMS) and the bonus wheel is chosen (VS_SELECTABLE_ROULETTE), each unless "
+    "--random-stat-items / --spin-bonus-wheel; builds into *_extras",
+)
+parser.add_argument(
+    "--random-stat-items",
+    action="store_true",
+    help="with --callo or --extras: permanent stat-up items keep their random +1 to +4 instead of always +4",
+)
+parser.add_argument(
+    "--spin-bonus-wheel",
+    action="store_true",
+    help="with --callo or --extras: the bonus wheel after a boss spins as in the original, instead of being chosen",
+)
+parser.add_argument(
+    "--big-inventory",
+    choices=["container"],
+    help="accepted for older builders and ignored: the bigger bag needs a port to the Zig battle code "
+    "(it builds into *_biginv as before, without it)",
+)
 parsed = parser.parse_args()
 win = parsed.target == "windows"
 # COFF-only: the analysis reads the PE/COFF objects themselves with MinGW's
@@ -87,6 +117,18 @@ no_audio = parsed.no_audio
 root = pathlib.Path(__file__).resolve().parents[2]
 out = root / ("pc/build/win64" if win else "pc/build/dev64" if engine_library
               else "pc/build/boot64" if arch64 else "pc/build/boot")
+if parsed.callo and parsed.extras:
+    parser.error("--extras is the extras without Merlose; --callo already has them")
+if parsed.extras and parsed.random_stat_items and parsed.spin_bonus_wheel:
+    parser.error("--extras with neither extra is the plain build")
+if parsed.callo:
+    out = out.with_name(out.name + "_callo")
+if parsed.extras:
+    out = out.with_name(out.name + "_extras")
+if parsed.big_inventory:
+    print("note: the bigger bag is not in this version (it needs a port to the Zig battle code); "
+          "building without it")
+    out = out.with_name(out.name + "_biginv")
 out.mkdir(parents=True, exist_ok=True)
 # One build at a time per output tree: every run recompiles the objects and then
 # renames symbols in place (name -> name__overlay), so a second run in the same
@@ -712,6 +754,13 @@ import symbol_names  # noqa: E402
 # (a warning; ROOD_REQUIRE_ZIG=1 makes it an error, as it will be once a
 # module is owned).
 _zig = None if os.environ.get("ROOD_NO_ZIG") == "1" else zig_toolchain.find()
+if _zig is None and os.environ.get("ROOD_NO_ZIG") != "1" and os.environ.get("ROOD_FETCH_ZIG", "1") == "1" \
+        and zig_toolchain.host() in zig_toolchain.PIN:
+    # The battle code is Zig (game/battle): the players' builders (pc/windows_builder, pc/linux_builder; older
+    # zips too) get the pinned, checksummed toolchain here. ROOD_FETCH_ZIG=0 keeps upstream's ask-first.
+    print(f"Zig {zig_toolchain.VERSION} is not installed: downloading the pinned toolchain from ziglang.org")
+    subprocess.run([sys.executable, str(root / "pc/tools/zig_toolchain.py"), "--fetch"], check=True)
+    _zig = zig_toolchain.find()
 if _zig is None and os.environ.get("ROOD_REQUIRE_ZIG") == "1":
     _zig = zig_toolchain.ensure()  # exits with the install instructions
 ZIG = str(_zig) if _zig else None
@@ -728,6 +777,8 @@ build_stamp = Stamp(root, out, {
     "battle": battle, "no_audio": no_audio, "arch": parsed.arch, "target": parsed.target, "coff": coff,
     "engine_library": engine_library,
     "debug_compress": debug_compress,
+    # the Merlose mod's options change the game units' defines
+    "callo": [parsed.callo, parsed.random_stat_items, parsed.spin_bonus_wheel, parsed.extras],
     "nrd": [nrd and nrd["libraries"], win_nrd and win_nrd["libraries"]], "toolchain": toolchain,
     "glslang": [glslang_libraries, win_glslang_libraries],
     # every variable this script (or a tool it imports) reads that changes what is built: a changed one rebuilds
@@ -935,6 +986,8 @@ if battle:
         ("pc/src/dev_state.c", "dev_state"),
         ("pc/src/studio.c", "studio"),
         ("pc/src/room_warp.c", "room_warp"),
+        ("pc/src/encounter_lab.c", "encounter_lab"),
+        ("pc/src/enemy_difficulty.c", "enemy_difficulty"),
         ("pc/src/action_driver.c", "action_driver"),
         ("pc/src/story_boot.c", "story_boot"),
         ("pc/src/fast_travel.c", "fast_travel"),
@@ -970,6 +1023,10 @@ if battle:
         (p.relative_to(root).as_posix(), "battle_" + p.stem)
         for p in sorted((root / "pc/src/game/BATTLE/BATTLE.PRG").glob("*.c"))
     ]
+    if parsed.callo:
+        # Linked with BATTLE.PRG, as in the decompilation's CALLO=1 build; the menu module
+        # (menu.c, a separate file on the disc there) is linked in too (mod/callo.h).
+        sources += [(f"pc/src/game/BATTLE/BATTLE.PRG/mod/{n}.c", f"battle_mod_{n}") for n in ["callo", "menu", "menu_memory"]]
     sources += [
         (p.relative_to(root).as_posix(), "init_" + p.stem)
         for p in sorted((root / "pc/src/game/BATTLE/INITBTL.PRG").glob("*.c"))
@@ -1035,6 +1092,11 @@ game_cpp_flags = [
     "-DOBJDIFF",
     "-DROOD_PC",
     "-DROOD_PC_BOOT_DIAGNOSTIC",
+    # The Callo mod's hooks (pc/src/game/BATTLE/BATTLE.PRG/mod/hooks.h) and the selectable bonus wheel
+    *(["-DVS_CALLO"] if parsed.callo else []),
+    *(["-DVS_SELECTABLE_ROULETTE"] if (parsed.callo or parsed.extras) and not parsed.spin_bonus_wheel else []),
+    *(["-DVS_CALLO_RANDOM_STAT_ITEMS"] if parsed.callo and parsed.random_stat_items else []),
+    *(["-DVS_MAX_STAT_ITEMS"] if parsed.extras and not parsed.random_stat_items else []),
     # psx_ptr/psx_get/PSX_SIZE/PSX_ASSERT_* in every game unit; on 32 bits
     # they expand to the original pointers and literals.
     "-include",
@@ -1209,7 +1271,7 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "dev_layout", "charge_skip", "camera_stick", "analog_move", "gl_present", "gpu_hw", "render", "render_state", "draw_items", "room_native", "gameplay_walls", "occlusion", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "savestate_slots", "frame_cost", "render_jitter", "render_thread", "present_header", "hw_meter", "hw_cmd", "hw_registry", "screen_owner", "tex_provider", "model_key", "studio_stage", "native_model/native_model", "rood_studio", "analog_state", "hw_calls", "renderer_rq", "display_confirm", "quit_options", "ui/option_actions", "ui/options_nav", "ui/option_style", "ui/option_peek", "host_format", "classic/classic_parity"] + (["vk_core", "vk_shader_lookup", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
+for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "dev_layout", "fight_trace", "charge_skip", "camera_stick", "analog_move", "gl_present", "gpu_hw", "render", "render_state", "draw_items", "room_native", "gameplay_walls", "occlusion", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "savestate_slots", "frame_cost", "render_jitter", "render_thread", "present_header", "hw_meter", "hw_cmd", "hw_registry", "screen_owner", "tex_provider", "model_key", "studio_stage", "native_model/native_model", "rood_studio", "analog_state", "hw_calls", "renderer_rq", "display_confirm", "quit_options", "ui/option_actions", "ui/options_nav", "ui/option_style", "ui/option_peek", "host_format", "classic/classic_parity"] + (["vk_core", "vk_shader_lookup", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
         + (["engine_host", "engine_reload", "engine_alloc"] if engine_library else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.

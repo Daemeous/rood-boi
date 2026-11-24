@@ -119,7 +119,7 @@ pub fn vs_event_evaluateRoomEventTriggers(arg0: c_int, arg1: c_int, arg2: isize,
                     p += 3;
                 },
                 5 => {
-                    const flagValue = psx.conv(i16, c.vs_actors_countActorsByDisposition(p[1]));
+                    const flagValue = psx.conv(i16, if (comptime @hasDecl(c, "vs_mod_countTeam")) c.vs_mod_countTeam(p[1]) else c.vs_actors_countActorsByDisposition(p[1]));
                     const flagId = c.vs_battle_getShort(p + 2);
                     if (flagId != 0) {
                         c.vs_battle_setStateFlag(flagId, psx.conv(u8, flagValue));

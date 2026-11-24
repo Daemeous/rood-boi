@@ -418,7 +418,10 @@ pub fn battleExec() callconv(.c) void {
                             0, 1 => {
                                 const transition = v.g.vs_battle_screenTransitionStep().*;
                                 if (transition != 1 and transition != 2 and transition != 4) {
-                                    switch (c.vs_battle_updateRoomActorVitals()) {
+                                    switch (if (comptime @hasDecl(c, "vs_mod_frame")) // Merlose's frame (mod/hooks.h)
+                                        @as(@TypeOf(c.vs_battle_updateRoomActorVitals()), c.vs_mod_frame())
+                                    else
+                                        c.vs_battle_updateRoomActorVitals()) {
                                         1 => c.func_80073898(),
                                         2 => {
                                             v.g.D_800F18FC().* = 0;
@@ -483,7 +486,7 @@ pub fn battleExec() callconv(.c) void {
                     {
                         const first = cursor();
                         const hud = psx.get(v.g.vs_scratch().unk0);
-                        c.vs_battle_drawBattleHud();
+                        if (comptime @hasDecl(c, "vs_mod_hud")) c.vs_mod_hud() else c.vs_battle_drawBattleHud(); // Merlose's HUD
                         if (psx.weak(Anchor, "pc_hw_anchor_packets")) |anchor| {
                             anchor(hud, psx.get(v.g.vs_scratch().unk0), 1);
                         }

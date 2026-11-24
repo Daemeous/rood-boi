@@ -222,6 +222,7 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
         for (0..6) |k| {
             stats.limbs[k].hp = saved.limbHP[k];
         }
+        c.pc_difficulty_restore(@ptrCast(saved), id, @ptrCast(data), @ptrCast(stats)); // enemy difficulty
         c.vs_battle_inflictActorStatuses(saved.statuses, @ptrCast(stats));
         result = c.vs_battle_aiCreateActorAiState(@ptrCast(actor), saved.aiFlags);
     } else {
