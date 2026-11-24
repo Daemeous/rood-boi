@@ -25,11 +25,12 @@ typedef struct {
     /* The room list's order key (bucket << 10 | sequence) and its own depth
      * (VK_TOKEN_ROOM_KEY, VK_TOKEN_ROOM_ONLY: pc_native_actor_window). */
     vk_image room_key, room_only;
-    vk_image vram; /* native VRAM, R16_UINT 1024 x 512 */
-    /* The texture resources (T5-7b, tex_provider.h; pc/docs/plans/2026-11-17-vram.md): the decoded pages (an atlas of 256 x 256 layers, 12 across: layer l at
-     * (l % 12 * 256, l / 12 * 256), R16_UINT), the palettes (256 entries a row, a slot a row) and the table that names a CLUT's slot (128 x 512: x is the CLUT's
-     * x in 16s, 64 further for the 256-entry palette; y its row; the value is the slot + 1, 0 none). Filled from the renderer's VRAM; apart from the VRAM image. */
-    vk_image tex_pages, tex_palettes, tex_table;
+    vk_image vram; /* native VRAM, R16_UINT, 1024 x 512 at the top left. The texture resources (T5-7b, tex_provider.h; pc/docs/plans/2026-11-17-vram.md) lie below it in the same
+                      image, so every shader that samples VRAM (the packet and native paths, the path tracer, the probes, the fog and particle lights) reads them through the
+                      binding it already has: the decoded pages (VK_TEX_PAGES_Y: an atlas of 256 x 256 layers, 12 across; layer l at (l % 12 * 256, l / 12 * 256)), the
+                      palettes (VK_TEX_PALETTES_Y: 256 entries a row, a slot a row) and the table that names a CLUT's slot (VK_TEX_TABLE_Y: 128 x 512; x is the CLUT's x
+                      in 16s, 64 further for the 256-entry palette; y its row; the value is the slot + 1, 0 none). Filled from the renderer's VRAM, apart from the VRAM
+                      rectangle; when the frame-sampling draws move to captures the VRAM rectangle goes and these stay. */
     vk_image emissive; /* emissive texels' slot map, R8_UINT 4096 x 516 (emissive.h) */
     vk_image variants; /* materials by object: the variants' records and cells, R8_UINT 4096 x rows (emissive.h; grown on demand; image 0 until a variant exists) */
     int variant_rows; /* its height */
@@ -43,6 +44,12 @@ typedef struct {
     int ms_samples, ms_width, ms_height;
 } vk_hw_state;
 extern vk_hw_state vk_hw;
+#define VK_TEX_PAGES_Y 512
+#define VK_TEX_PALETTES_Y 2560
+#define VK_TEX_TABLE_Y 3584
+#define VK_VRAM_WIDTH 3072
+#define VK_TEX_VALID_Y 4096 /* one row: a halfword a layer, 1 where the ray readers may read the layer (gpu_hw.c pc_tex_resources_refresh) */
+#define VK_VRAM_HEIGHT 4097
 #define VK_TARGET_FORMAT VK_FORMAT_R8G8B8A8_UNORM
 /* The material target (material_pack.glsl: packed 16-bit words). */
 #define VK_MATERIAL_FORMAT VK_FORMAT_R16G16B16A16_UNORM
@@ -73,6 +80,7 @@ typedef struct {
     int override_color, override_texture;
     uint32_t color; /* r | g << 8 | b << 16 */
     uint32_t tpage, clut;
+    int resource; /* every polygon's page and palette are current resources (gpu_hw.c pc_tex_resource_for): the skinned triangles carry the flag */
 } vk_mover;
 /* The opaque instances of object list `list` at palette blend t (blended
  * instances are translucent: not casters); returns how many were written. */

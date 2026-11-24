@@ -2014,6 +2014,7 @@ static void sampled_bands(unsigned tpage, unsigned clut, unsigned window, const 
  * compares what the draw reaches with the sampled copy of VRAM (what the shaders read now): a texel that differs is counted and the first few are printed. */
 enum { TEX_LAYERS = 96, TEX_SLOTS = 1024 };
 static int tex_check = -1, tex_switch = -1;
+static int tex_rt_mode; /* tex_ensure also refuses what the sampled copy lacks (dirty_bands): the rays read the image as it is at the dispatch, which a draw has not brought up to date */
 static uint32_t tex_layer_version[TEX_LAYERS];
 static int tex_layer_filled[TEX_LAYERS];
 static int16_t tex_slot_of[2 * 32768]; /* clut | wide << 15 -> slot + 1 */
@@ -2097,7 +2098,7 @@ static int tex_ensure(unsigned tpage, unsigned clut, unsigned window, const int 
         for (int k = 0; k < n; k++)
             bands_for(span[k][0], span[k][1], span[k][2], span[k][3], bands);
         for (int c = 0; c < 16; c++)
-            if (bands[c] & own_bands[c])
+            if (bands[c] & (own_bands[c] | (tex_rt_mode ? dirty_bands[c] : 0)))
                 return 0;
     }
     *layer = tex_layer_of(tpage);
@@ -2128,6 +2129,68 @@ static int tex_list_pure(uint32_t list)
     if (!stopped)
         ++tex_stat_lists;
     return !stopped;
+}
+/* The ray readers (rt_common.glsl, probe_bvh.glsl; T5-7b slice 4): a triangle whose page and palette are pure-upload resources carries RT_TPAGE_RESOURCE in its page word
+ * (ptgi.c rt_tpage). The scene is cached across frames, so the pairs a flag was given for are kept (tex_rt_*) and brought up to date before every dispatch that reads
+ * them (tex_rt_refresh, from vrt_room): by then the renderer's copy holds this frame's uploads, so the resource is what the VRAM image reads. A layer with a pair that has since come under
+ * an own copy of the frame (what the image holds there is what the draws made, not an upload) is marked invalid in the image's VALID row and its triangles read the VRAM
+ * image (page_valid in tex_pages.glsl). */
+static void tex_note(unsigned tpage, unsigned clut, unsigned window, const int box[4]);
+enum { TEX_RT_SLOTS = 8192 };
+static uint32_t tex_rt_key[TEX_RT_SLOTS]; /* tpage << 16 | clut, | 1 << 31 (0: free) */
+static int tex_rt_count;
+int pc_tex_resource_for(unsigned tpage, unsigned clut)
+{
+    static const int whole[4] = { 0, 0, 255, 255 };
+    pc_tex_sampling s;
+    int layer, slot;
+    tex_init();
+    if (!tex_switch || renderer_vram != rvram || !pc_vk_hw_tex_ready() || tex_rt_count >= TEX_RT_SLOTS / 2)
+        return 0;
+    tpage &= 0x19f, clut &= 0xffff; /* (the page and the depth: the blend bits make no other page) */
+    if (!tex_ensure(tpage, clut, 0, whole, &s, &layer, &slot))
+        return 0;
+    uint32_t key = tpage << 16 | clut | 1u << 31;
+    for (uint32_t i = (key * 0x9e3779b1u) >> 19;; i = (i + 1) & (TEX_RT_SLOTS - 1)) {
+        if (tex_rt_key[i] == key)
+            break;
+        if (!tex_rt_key[i]) {
+            tex_rt_key[i] = key, ++tex_rt_count;
+            break;
+        }
+    }
+    return 1;
+}
+void pc_tex_resources_refresh(void)
+{
+    static const int whole[4] = { 0, 0, 255, 255 };
+    static uint16_t valid[TEX_LAYERS], sent[TEX_LAYERS];
+    static int sent_any;
+    pc_tex_sampling s;
+    int layer, slot;
+    if (!tex_rt_count || !tex_switch || renderer_vram != rvram || !pc_vk_hw_tex_ready())
+        return;
+    int blocked[TEX_LAYERS] = { 0 }, any[TEX_LAYERS] = { 0 };
+    for (int i = 0; i < TEX_RT_SLOTS; i++)
+        if (tex_rt_key[i]) {
+            unsigned tpage = tex_rt_key[i] >> 16 & 0x19f;
+            int l = tex_layer_of(tpage);
+            any[l] = 1;
+            tex_rt_mode = 1;
+            int ok = tex_ensure(tpage, tex_rt_key[i] & 0xffff, 0, whole, &s, &layer, &slot);
+            tex_rt_mode = 0;
+            if (!ok)
+                blocked[l] = 1;
+            else if (tex_check)
+                tex_note(tpage, tex_rt_key[i] & 0xffff, 0, whole); /* (compares the layer and palette with the sampled copy) */
+        }
+    for (int l = 0; l < TEX_LAYERS; l++)
+        valid[l] = (uint16_t)(any[l] && !blocked[l]);
+    if (!sent_any || memcmp(valid, sent, sizeof valid)) {
+        pc_vk_hw_tex_valid(valid);
+        memcpy(sent, valid, sizeof sent);
+        sent_any = 1;
+    }
 }
 /* A textured draw is about to sample (tpage, clut) over `box`, after its uploads: bring the resources up to date and, in check mode, compare. */
 static void tex_note(unsigned tpage, unsigned clut, unsigned window, const int box[4])
@@ -2184,6 +2247,8 @@ static void tex_note(unsigned tpage, unsigned clut, unsigned window, const int b
 static int tex_pure;
 static void tex_note(unsigned tpage, unsigned clut, unsigned window, const int box[4]) { (void)tpage, (void)clut, (void)window, (void)box; }
 static int tex_list_pure(uint32_t list) { (void)list; return 0; }
+int pc_tex_resource_for(unsigned tpage, unsigned clut) { (void)tpage, (void)clut; return 0; }
+void pc_tex_resources_refresh(void) { }
 #endif
 static int report_mask_check;
 /* Depth (GTE SZ) for the next pc_hw_triangle only; primitives without it are 2D. */

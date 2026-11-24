@@ -18,6 +18,7 @@
  * indirect light without it. */
 #define _POSIX_C_SOURCE 200809L
 #include "vram_texels.h"
+#include "vk_hooks.h" /* pc_tex_resource_for */
 #include "present_header.h" /* the present frame header: the Vulkan GI code reads its settings there (T1 R4b) */
 #include "gl_api.h"
 #include "scene_capture.h"
@@ -128,6 +129,13 @@ static void grow(int n)
     centroids = realloc(centroids, (size_t)capacity * 3 * sizeof *centroids);
     order = realloc(order, (size_t)capacity * sizeof *order);
 }
+/* A triangle's page word: the page, and RT_TPAGE_RESOURCE when its page and palette are current resources (gpu_hw.c pc_tex_resource_for; the shaders' TPAGE_RESOURCE).
+ * Bits above the page's own are not read, so every CPU reader of the word masks it. */
+#define RT_TPAGE_RESOURCE 0x8000u
+static unsigned rt_tpage(unsigned tpage, unsigned clut)
+{
+    return (tpage & 0x7fff) | (pc_tex_resource_for(tpage, clut) ? RT_TPAGE_RESOURCE : 0);
+}
 static void add_triangle(const float p[3][3], const uint8_t rgb[3][3], const uint8_t uv[3][2], unsigned tpage,
     unsigned clut, unsigned code, unsigned flags)
 {
@@ -139,7 +147,7 @@ static void add_triangle(const float p[3][3], const uint8_t rgb[3][3], const uin
         corner[i][3] = bits_float(rgb[i][0] | (uint32_t)rgb[i][1] << 8 | (uint32_t)rgb[i][2] << 16);
     }
     t->info[0] = (uint32_t)(uv[0][0] | uv[0][1] << 8 | uv[1][0] << 16 | uv[1][1] << 24);
-    t->info[1] = (uint32_t)(uv[2][0] | uv[2][1] << 8) | (tpage & 0xffff) << 16;
+    t->info[1] = (uint32_t)(uv[2][0] | uv[2][1] << 8) | rt_tpage(tpage, clut) << 16;
     t->info[2] = (clut & 0xffff) | (code & 0xff) << 16;
     t->info[3] = flags;
 }

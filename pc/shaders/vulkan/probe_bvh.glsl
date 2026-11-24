@@ -18,6 +18,8 @@ float rand() {
     uint w = ((rng >> ((rng >> 28u) + 4u)) ^ rng) * 277803737u;
     return float((w >> 22u) ^ w) / 4294967296.0;
 }
+#include "tex_pages.glsl"
+const uint TPAGE_RESOURCE = 0x8000u; // the triangle's page and palette are resources (gpu_hw.c pc_hw_tex_resource_for; refreshed before the dispatch)
 uint fetch(int x, int y) { return texelFetch(vram, ivec2(x & 1023, y & 511), 0).r; }
 uint texel_at(uint u, uint v, uint tpage, uint clut) {
     int tx = int(tpage & 15u) * 64, ty = int((tpage >> 4) & 1u) * 256;
@@ -32,7 +34,8 @@ uint surface_texel(Tri t, vec2 bc) {
     vec2 uv1 = vec2((t.info.x >> 16) & 255u, t.info.x >> 24);
     vec2 uv2 = vec2(t.info.y & 255u, (t.info.y >> 8) & 255u);
     vec2 uv = uv0 * (1.0 - bc.x - bc.y) + uv1 * bc.x + uv2 * bc.y;
-    return texel_at(uint(uv.x) & 255u, uint(uv.y) & 255u, t.info.y >> 16, t.info.z & 0xffffu);
+    uint tpage = t.info.y >> 16, u = uint(uv.x) & 255u, v = uint(uv.y) & 255u;
+    return (tpage & TPAGE_RESOURCE) != 0u && page_valid(tpage) ? texel_page(u, v, tpage, t.info.z & 0xffffu) : texel_at(u, v, tpage, t.info.z & 0xffffu);
 }
 vec3 vertex_rgb(float w) { uint c = floatBitsToUint(w); return vec3(c & 255u, (c >> 8) & 255u, (c >> 16) & 255u) / 255.0; }
 // Nearest hit (or any hit) along o + d t, t < t_max; clear and translucent

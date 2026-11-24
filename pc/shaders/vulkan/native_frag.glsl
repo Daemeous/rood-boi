@@ -17,9 +17,6 @@ layout(location = 10) noperspective in vec3 v_bary;
 layout(location = 11) flat in uint v_order;
 layout(binding = 2) uniform usampler2D vram;
 layout(binding = 6) uniform usampler2D emissive_map; // emissive texels' slot map (emissive.glsl)
-layout(binding = 11) uniform usampler2D tex_pages; // the texture resources (T5-7b, tex_resources.glsl)
-layout(binding = 12) uniform usampler2D tex_palettes;
-layout(binding = 13) uniform usampler2D tex_table;
 layout(binding = 10) uniform usampler2D variant_map; // materials by object: variant records and cells (variant_texel)
 // MSAA (native_ms.frag): the surfaces' depth read from multisampled twins, sample 0.
 #ifdef SURFACE_MS

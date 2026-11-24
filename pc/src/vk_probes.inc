@@ -348,6 +348,7 @@ int pc_vk_probes_update(int x, int y, int w, int h, int replay)
     probe_fit();
     if (pvk.bvh ? !probe_vk_bvh() : !probe_vk_tlas())
         return 0;
+    pc_tex_resources_refresh(); /* (the room's flagged pages and palettes: as vrt_scene) */
     if (!probe_vk_resources())
         return 0;
     VkDeviceSize alignment = vk.properties.limits.minUniformBufferOffsetAlignment;

@@ -16,7 +16,7 @@ layout(std430, binding = 3) readonly buffer Previous { Tri tris[]; } previous;
 layout(std430, binding = 4) writeonly buffer Motion { vec4 p[]; } motion; // previous a, b, c per triangle
 layout(push_constant) uniform Push {
     uint polygons, bones, has_previous, override_color;
-    uint color, override_texture, tpage, clut;
+    uint color, override_texture, tpage, clut, resource_flag;
 } pc;
 const float NAN = uintBitsToFloat(0x7fc00000u);
 vec3 skin(uint v, out uint rgb, out uint uv) {
@@ -33,7 +33,7 @@ void put(uint index, vec3 p[4], uint rgb[4], uint uv[4], ivec3 k, uint tpage, ui
     t.a = vec4(live ? p[k.x].x : NAN, p[k.x].yz, uintBitsToFloat(rgb[k.x]));
     t.b = vec4(p[k.y], uintBitsToFloat(rgb[k.y]));
     t.c = vec4(p[k.z], uintBitsToFloat(rgb[k.z]));
-    t.info = uvec4(uv[k.x] | uv[k.y] << 16, uv[k.z] | (tpage & 0xffffu) << 16, (clut & 0xffffu) | (code & 0xffu) << 16, flags);
+    t.info = uvec4(uv[k.x] | uv[k.y] << 16, uv[k.z] | (tpage & 0x7fffu | pc.resource_flag) << 16, (clut & 0xffffu) | (code & 0xffu) << 16, flags);
     dst.tris[index] = t;
     if (pc.has_previous != 0u) {
         Tri o = previous.tris[index];

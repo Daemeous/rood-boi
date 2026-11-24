@@ -53,6 +53,7 @@ void pc_vk_hw_upload_rects(const uint16_t* vram, const int (*rects)[4], int coun
  * 256-entry palette's table half); a layer or slot read back (synchronously). 0 when the resources are not made. */
 int pc_vk_hw_tex_ready(void);
 void pc_vk_hw_tex_page(int layer, const uint16_t* texels);
+void pc_vk_hw_tex_valid(const uint16_t* valid); /* 96 halfwords: the layers the ray readers may read */
 void pc_vk_hw_tex_palette(int slot, unsigned clut, int wide, const uint16_t* colours);
 int pc_vk_hw_tex_read_page(int layer, int u0, int v0, int u1, int v1, uint16_t* out);
 int pc_vk_hw_tex_read_palette(int slot, uint16_t* out);
@@ -118,6 +119,11 @@ void pc_vk_hw_ms_sync_room(int x0, int y0, int x1, int y1);
 /* ---- render.c -> vk_render.inc ---- */
 uint32_t pc_vk_mesh_create(const void* vertices, size_t bytes);
 void pc_vk_mesh_destroy(uint32_t mesh);
+
+/* ---- ptgi.c, vk_rt.inc, render.c -> gpu_hw.c: the texture resources the ray readers use (T5-7b slice 4) ---- */
+/* Whether the pure-upload resources for (tpage, clut) are current (brought up to date, and kept so by pc_tex_resources_refresh): the triangle's page word may carry the flag. */
+int pc_tex_resource_for(unsigned tpage, unsigned clut);
+void pc_tex_resources_refresh(void); /* before a dispatch that reads flagged triangles */
 
 /* ---- boot_window.c -> vk_present.c ---- */
 struct SDL_Window;

@@ -186,7 +186,7 @@ static int vrt_init(void)
     vrt.atrous = vrt_compute(VK_SHADER(rt_atrous_comp), vrt.atrous_layout);
     VkDescriptorType skin[5] = { B, B, B, B, B };
     vrt.skin_set = vk_push_layout(skin, 5);
-    vrt.skin_layout = vrt_layout(vrt.skin_set, 32);
+    vrt.skin_layout = vrt_layout(vrt.skin_set, 36);
     vrt.skin = vrt_compute(VK_SHADER(rt_skin_comp), vrt.skin_layout);
     VkDescriptorType haze[12] = { U, A, B, T, U, S, T, S, S, B, B, T }; /* 10: the light list; 11: the medium's texture */
     VkDescriptorType integrate[3] = { U, S, S };
@@ -351,7 +351,7 @@ static int vrt_solid(const gpu_triangle* t, const uint16_t* vram)
         return 0;
     float u[3] = { (float)(t->info[0] & 255), (float)(t->info[0] >> 16 & 255), (float)(t->info[1] & 255) };
     float v[3] = { (float)(t->info[0] >> 8 & 255), (float)(t->info[0] >> 24), (float)(t->info[1] >> 8 & 255) };
-    unsigned tpage = t->info[1] >> 16, clut = t->info[2] & 0xffff;
+    unsigned tpage = t->info[1] >> 16 & 0x7fff, clut = t->info[2] & 0xffff;
     int semi = (t->info[3] & 4u) != 0;
     float area = (u[1] - u[0]) * (v[2] - v[0]) - (u[2] - u[0]) * (v[1] - v[0]);
     int u0 = (int)fminf(u[0], fminf(u[1], u[2])), u1 = (int)fmaxf(u[0], fmaxf(u[1], u[2]));
@@ -454,7 +454,7 @@ static void vrt_room_uvs(const scene_triangle* room, int room_count)
             continue;
         const scene_triangle* t = &room[i];
         uint32_t info[2] = { (uint32_t)(t->vertex[0].u | t->vertex[0].v << 8 | t->vertex[1].u << 16 | t->vertex[1].v << 24),
-            (uint32_t)(t->vertex[2].u | t->vertex[2].v << 8) | (uint32_t)t->tpage << 16 };
+            (uint32_t)(t->vertex[2].u | t->vertex[2].v << 8) | rt_tpage(t->tpage, t->clut) << 16 };
         if (!memcmp(triangles[g].info, info, sizeof info))
             continue;
         memcpy(triangles[g].info, info, sizeof info);
@@ -637,7 +637,7 @@ static int vrt_mover_buffers(int slot, int triangles)
     return 1;
 }
 typedef struct {
-    uint32_t polygons, bones, has_previous, override_color, color, override_texture, tpage, clut;
+    uint32_t polygons, bones, has_previous, override_color, color, override_texture, tpage, clut, resource;
 } vrt_skin_push;
 static void vrt_movers(void)
 {
@@ -702,7 +702,8 @@ static void vrt_movers(void)
             (VkDeviceSize)m->polygons * 2 * 64);
         vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_COMPUTE, vrt.skin_layout);
         vrt_skin_push push = { (uint32_t)m->polygons, (uint32_t)(m->bones > 0 ? m->bones : 1), (uint32_t)has_previous,
-            (uint32_t)m->override_color, m->color, (uint32_t)m->override_texture, m->tpage, m->clut };
+            (uint32_t)m->override_color, m->color, (uint32_t)m->override_texture, m->tpage, m->clut,
+            m->resource ? 0x8000u : 0u };
         vkCmdPushConstants(cmd, vrt.skin_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof push, &push);
         vkCmdDispatch(cmd, (uint32_t)(m->polygons + 63) / 64, 1, 1);
         e->used = vrt.updates;
@@ -804,6 +805,7 @@ static int vrt_scene(void)
     if (!vrt_room())
         return 0;
     vrt_movers();
+    pc_tex_resources_refresh(); /* the flagged triangles' pages and palettes (the room's, the movers'), as of this frame's uploads */
     triangle_count = room_triangles;
     return vrt_tlas();
 }
