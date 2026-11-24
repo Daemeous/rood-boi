@@ -121,4 +121,5 @@ pub fn vs_actors_applyActorInitialStats(slot: c_int, actor: ?*v.vs_battle_actor2
         a.statusTimers[k] = 0;
     }
     a.actionRecoveryTimer = 0;
+    c.pc_difficulty_init(slot, @ptrCast(d), @ptrCast(a)); // enemy difficulty: fresh templates (pc/src/enemy_difficulty.c)
 }

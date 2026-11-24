@@ -2174,6 +2174,7 @@ static void tick_frame(void)
     tick_frame_work();
     pc_cost_game_resumes(cost);
 }
+extern void pc_fight_trace_vsync(void) __attribute__((weak)); /* fight_trace.c */
 static void tick_frame_work(void)
 {
     /* A photo mode render (photo.cpp): the game runs from the frozen moment, nothing to see (no
@@ -2183,6 +2184,8 @@ static void tick_frame_work(void)
         pc_fog_vsync(); /* once per game vsync, after the RPC's changes, before the frame */
     if (pc_lua_tick && !photo)
         pc_lua_tick(); /* plugins' tick handlers and game-time timers, after the RPC's changes */
+    if (pc_fight_trace_vsync && !photo)
+        pc_fight_trace_vsync(); /* the state the last frame left */
     if (pc_charge_skip_vsync && !photo)
         pc_charge_skip_vsync();
     pc_window_tick();

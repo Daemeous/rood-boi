@@ -14,7 +14,10 @@ pub fn vs_actors_queueActorWeaponSequenceLoad(src: [*c]u8, index: c_int, mode: c
         sp10.dataType = 7;
         sp10.index = psx.conv(i8, index);
         const actor: *const v.vs_battle_actor = @ptrCast(@alignCast(src));
-        sp10.modelId = psx.conv(i16, actor.equippedWeaponCategory);
+        sp10.modelId = if (comptime @hasDecl(c, "vs_mod_animSet")) // Merlose's staves (mod/hooks.h)
+            psx.conv(i16, c.vs_mod_animSet(index, actor.equippedWeaponCategory))
+        else
+            psx.conv(i16, actor.equippedWeaponCategory);
         sp10.actorId = 0;
         _ = c.vs_battle_populateDataSlot(@ptrCast(&sp10));
     }

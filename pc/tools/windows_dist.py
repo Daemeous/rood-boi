@@ -46,6 +46,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("destination", type=pathlib.Path)
     parser.add_argument("--disc", action="store_true", help="also copy disks/SLUS-01040.bin")
+    parser.add_argument("--callo-build", default="win64_callo",
+                        help="with --callo: the build_boot.py output folder under pc/build to take it from "
+                        "(win64_callo_biginv for --big-inventory)")
+    parser.add_argument("--extras", action="store_true",
+                        help="also add the extras build (build_boot.py --target windows --extras: the "
+                        "Merlose mod's extras without her) as rood-extras.exe with play-extras.bat")
+    parser.add_argument("--callo", action="store_true",
+                        help="also add the Callo Merlose mod build (build_boot.py --target windows --callo) "
+                        "as rood-callo.exe with play-callo.bat, sharing the folder's data and saves")
     args = parser.parse_args()
     exe = ROOT / "pc/build/win64/rood.exe"
     if not exe.exists():
@@ -61,6 +70,22 @@ def main():
     strip = "strip" if os.name == "nt" else "x86_64-w64-mingw32-strip"
     subprocess.run([strip, "--strip-debug", str(dest / "rood.exe")], check=True)
     (dest / "play.bat").write_bytes(PLAY_BAT.replace("\n", "\r\n").encode())
+    if args.callo:
+        callo = ROOT / "pc/build" / args.callo_build / "rood.exe"
+        if not callo.exists():
+            raise SystemExit(f"{callo} is missing: run build_boot.py --target windows --callo")
+        shutil.copy2(callo, dest / "rood-callo.exe")
+        subprocess.run([strip, "--strip-debug", str(dest / "rood-callo.exe")], check=True)
+        bat = PLAY_BAT.replace("rood.exe", "rood-callo.exe").replace("rood.log", "rood-callo.log")
+        (dest / "play-callo.bat").write_bytes(bat.replace("\n", "\r\n").encode())
+    if args.extras:
+        extras = ROOT / "pc/build/win64_extras/rood.exe"
+        if not extras.exists():
+            raise SystemExit(f"{extras} is missing: run build_boot.py --target windows --extras")
+        shutil.copy2(extras, dest / "rood-extras.exe")
+        subprocess.run([strip, "--strip-debug", str(dest / "rood-extras.exe")], check=True)
+        bat = PLAY_BAT.replace("rood.exe", "rood-extras.exe").replace("rood.log", "rood-extras.log")
+        (dest / "play-extras.bat").write_bytes(bat.replace("\n", "\r\n").encode())
     for tree in ["data", "lighting", "pc/assets", "pc/third_party/fonts", "pc/plugins"]:
         shutil.copytree(ROOT / tree, dest / tree, dirs_exist_ok=True)
     # Licences: this project's, the vendored code linked into rood.exe, NRD

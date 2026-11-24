@@ -5,6 +5,7 @@ void pc_frame_table_draw(unsigned* head);
 #include "../SLUS_010.40/main.h"
 #include "../SLUS_010.40/sfx.h"
 #include "../BATTLE/BATTLE.PRG/func_8006B57C_t.h"
+#include "../BATTLE/BATTLE.PRG/mod/inventory.h"
 #include "gpu.h"
 #include "build/src/include/lbas.h"
 #include "vs_string.h"
@@ -605,9 +606,17 @@ static int _applyLoadedSaveFile(int verifyOnly)
     _rMemcpy(&vs_main_mapStatus, spmcimg[1].mapStatus, sizeof vs_main_mapStatus);
     _rMemcpy(&vs_main_settings, &spmcimg[1].unk6A8, sizeof vs_main_settings);
     _rMemcpy(&vs_state_ashleySnapshot, &spmcimg[1].unk6C8, sizeof vs_state_ashleySnapshot);
+#ifdef VS_BIG_INVENTORY
+    vs_inventory_load(&vs_main_inventory, &vs_main_inventoryIndices,
+        (vs_main_savedInventory_t*)spmcimg[1].unk7C8,
+        (vs_main_savedInventoryIndices_t*)spmcimg[1].unk16C8,
+        /* the container's blocks too: a damaged one leaves the bag's second half empty */
+        _verifySaveChecksums(spmcimg + 1, 92) == 0 ? &spmcimg[1].containerData : NULL);
+#else
     _rMemcpy(&vs_main_inventory, spmcimg[1].unk7C8, sizeof vs_main_inventory);
     _rMemcpy(
         &vs_main_inventoryIndices, spmcimg[1].unk16C8, sizeof vs_main_inventoryIndices);
+#endif
     _rMemcpy(&vs_state_savedEntryDoor, &spmcimg[1].unk1778, sizeof vs_state_savedEntryDoor);
     _rMemcpy(&vs_main_scoredata, &spmcimg[1].unk1784, sizeof vs_main_scoredata);
     vs_state_currentRoomStateSlot = s4->unk1898;
@@ -712,12 +721,25 @@ static void _packageGameSaveData(int targetFile)
     _rMemcpy(savedata->mapStatus, &vs_main_mapStatus, sizeof savedata->mapStatus);
     _rMemcpy(&savedata->unk6A8, &vs_main_settings, sizeof savedata->unk6A8);
     _rMemcpy(&savedata->unk6C8, &vs_state_ashleySnapshot, sizeof savedata->unk6C8);
+#ifndef VS_BIG_INVENTORY
     _rMemcpy(savedata->unk7C8, &vs_main_inventory, sizeof savedata->unk7C8);
     _rMemcpy(savedata->unk16C8, &vs_main_inventoryIndices, sizeof savedata->unk16C8);
+#endif
     _rMemcpy(&savedata->unk1778, &vs_state_savedEntryDoor, sizeof savedata->unk1778);
     _rMemcpy(&savedata->unk1784, &vs_main_scoredata, sizeof savedata->unk1784);
     _rMemcpy(&savedata->containerData, &savedata2->containerData,
         sizeof savedata->containerData);
+#ifdef VS_BIG_INVENTORY
+    {
+        void* scratch =
+            vs_main_allocHeapR(sizeof vs_main_inventory + sizeof vs_main_inventoryIndices);
+        vs_inventory_save((vs_main_savedInventory_t*)savedata->unk7C8,
+            (vs_main_savedInventoryIndices_t*)savedata->unk16C8, &savedata->containerData,
+            (u_char*)savedata->unk200, &vs_main_inventory, &vs_main_inventoryIndices,
+            scratch);
+        vs_main_freeHeapR(scratch);
+    }
+#endif
     savedata->unk1898 = vs_state_currentRoomStateSlot;
     _rMemcpy(savedata->unk189C, D_80061078, sizeof savedata->unk189C);
     _rMemcpy(&savedata->artsStatus, &vs_main_artsStatus, sizeof savedata->artsStatus);
@@ -803,9 +825,12 @@ static int _loadSaveData(int portFileno)
         }
         _resetMemcardEvents(memcardEventsSw);
         nBytes = sizeof(savedata_t);
+#ifndef VS_BIG_INVENTORY
+        /* loading a game only needs the first block; the bigger bag also needs the container */
         if (isTempSave != 0) {
             nBytes = 0x2000;
         }
+#endif
         if (read(fd, temp_s2, nBytes) == -1) {
             close(fd);
             ++errors;
@@ -4887,7 +4912,11 @@ static void _initGameData(void)
     }
 
     vs_main_bzero(&vs_state_savedEntryDoor, sizeof vs_state_savedEntryDoor);
+#ifdef VS_BIG_INVENTORY
+    vs_inventory_newGame(&vs_main_inventory, (vs_main_savedInventory_t*)vs_title_newGameInventoryTemplate);
+#else
     vs_main_memcpy(&vs_main_inventory, vs_title_newGameInventoryTemplate, sizeof vs_main_inventory);
+#endif
 
     vs_gametime_tickspeed = 2;
     vs_state_savedEntryDoor.unk4_8 = 4;

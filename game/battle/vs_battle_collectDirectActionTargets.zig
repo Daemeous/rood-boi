@@ -52,7 +52,11 @@ pub fn vs_battle_collectDirectActionTargets(arg0: c_int) callconv(.c) void {
     var count: c_int = 0;
     var i: c_int = 0;
     while (i < 16) : (i += 1) { // i < 16
-        const status = c.vs_actors_actorStateFlags(i);
+        // Merlose (mod/hooks.h): her targeting status
+        const status = if (comptime @hasDecl(c, "vs_mod_targetStatus"))
+            @as(@TypeOf(c.vs_actors_actorStateFlags(i)), @bitCast(c.vs_mod_targetStatus(i)))
+        else
+            c.vs_actors_actorStateFlags(i);
         const actor = actors[@intCast(i)];
         if (actor != null and
             (i != state().unk8.primaryTarget.target.targetActor or psx.GlobalMany(u8, "D_800E81B4").ptr()[kind] != 0) and

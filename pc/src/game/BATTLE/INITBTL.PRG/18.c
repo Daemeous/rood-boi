@@ -379,7 +379,7 @@ static void vs_actors_spawnAshleyWithEquipment(void)
     bladeWepId = 0;
     bladeIndex = 0;
 
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
         if (vs_main_inventory.weapons[i].isEquipped != 0) {
             bladeIndex = i + 1;
             bladeWepId =
@@ -392,7 +392,7 @@ static void vs_actors_spawnAshleyWithEquipment(void)
     shieldWepId = 0;
     shieldIndex = 0;
 
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
         if (vs_main_inventory.shields[i].isEquipped != 0) {
             shieldIndex = i + 1;
             shieldWepId = vs_main_inventory.shields[i].base.wepId;
@@ -534,6 +534,14 @@ void vs_boot_initializeGameplayOverlay(int startState __attribute__((unused)))
     vs_state_sceneTimer.seconds = 0;
     vs_state_sceneTimer.frames = 0;
     _zoneContext.currentSceneId = vs_state_savedEntryDoor.unk6_0;
+#ifdef ROOD_PC
+    /* A new game/card load starts a new difficulty session. Existing room
+     * records are vanilla-scale, including saves made with difficulty on. */
+    {
+        extern void pc_difficulty_begin_scene(int);
+        pc_difficulty_begin_scene((unsigned char)vs_main_stateFlags.clearCount);
+    }
+#endif
     vs_battle_cameraTransition = NULL;
     vs_field_resetCameraToAshley();
     vs_view.camera.farClip = 0x1000;

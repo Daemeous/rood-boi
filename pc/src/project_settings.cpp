@@ -122,6 +122,11 @@ int pc_hud_label_opaque = 1;
  * read-back and upload (gpu_hw.c pc_hw_opacity_on; ROOD_OPACITY_2D, when set,
  * wins). */
 int pc_opacity_2d = 1;
+/* Enemy difficulty: pending user settings; active values live with game state. */
+int pc_difficulty_base_percent, pc_difficulty_clear_percent;
+/* Boot-only builds have no BATTLE unit. The strong game-owned definitions are snapshotted. */
+int pc_difficulty_active_base __attribute__((weak)), pc_difficulty_active_clear __attribute__((weak)),
+    pc_difficulty_active_completions __attribute__((weak));
 /* menu_fade plain | original: a main-menu screen's background fade (MAINMENU _renderBackground, over the same 8
  * game frames either way). plain (default): the field dims to black (a black tile at the opacity), then the menu's
  * picture comes in from black; original: the game's own cross-fade of the menu's picture added to a half-blend of
@@ -475,6 +480,8 @@ const Entry entries[] = {
     IN("qol_weapon_slots_color1", pc_qol_weapon_slots_color[1], 3),
     IN("qol_weapon_slots_color2", pc_qol_weapon_slots_color[2], 3),
     IN("qol_weapon_slots_color3", pc_qol_weapon_slots_color[3], 3),
+    I("difficulty_base_percent", pc_difficulty_base_percent),
+    I("difficulty_clear_percent", pc_difficulty_clear_percent),
     I("qol_skip_charging", pc_qol_skip_charging), /* 0 off, 1 skip (apply_line: older 2 is 1) */
     I("qol_skip_charging_who", pc_qol_skip_charging_who), /* 0 mine, 1 all */
     F("qol_skip_charging_name", pc_qol_skip_charging_name), /* seconds, 0..2 */

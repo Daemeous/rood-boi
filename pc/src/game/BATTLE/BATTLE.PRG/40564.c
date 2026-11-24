@@ -1,6 +1,7 @@
 #include "common.h"
 #include "40564.h"
 #include "146C.h"
+#include "pc/src/game/BATTLE/BATTLE.PRG/mod/hooks.h"
 #include "3A1A0.h"
 #include "pc/src/game/SLUS_010.40/main.h"
 #include "pc/src/game/SLUS_010.40/32154.h"

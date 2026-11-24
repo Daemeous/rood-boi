@@ -1,0 +1,8 @@
+#!/bin/bash
+# Native Windows build: the Makefiles run "xdelta3 -dfans <file> <patch> <file>", patching a file
+# in place. Windows refuses to write a file that is open for reading, and this xdelta3 build reads
+# combined flags differently: spell them out and write a temporary file that then replaces it.
+# xdelta3 reads extra options from $XDELTA, which make exports when the build overrides it.
+unset XDELTA
+[ "$#" -eq 4 ] && [ "$1" = -dfans ] || { echo "xdelta3-inplace: unexpected arguments: $*" >&2; exit 2; }
+"$(dirname "$0")/xdelta3.exe" -d -f -a -n -s "$2" "$3" "$4.tmp" && mv -f "$4.tmp" "$4"

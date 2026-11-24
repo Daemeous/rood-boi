@@ -16,6 +16,8 @@
 #define _ITEMMENU
 
 #include "pc/src/game/MENU/_toggleUi.h"
+#include "pc/src/game/BATTLE/BATTLE.PRG/mod/hooks.h"
+#define VS_CALLO_MERLOSE_ROWS
 #include "pc/src/game/MENU/items0.h"
 #include "pc/src/game/MENU/items1.h"
 
@@ -357,14 +359,14 @@ static int _equipAccessoryMenu(int initialize)
 
     if (initialize) {
 
-        for (i = 0; i < 16; ++i) {
+        for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
             index = vs_main_inventoryIndices.armor[i];
             if (index && (vs_main_inventory.armor[index - 1].limb == 7)) {
                 break;
             }
         }
 
-        if (i == 16) {
+        if (i == VS_INVENTORY_ARMOR) {
             index = 0;
         }
 
@@ -390,7 +392,7 @@ static int _equipAccessoryMenu(int initialize)
         itemCount = vs_mainMenu_getItemCount(4, NULL);
         hasAccessory = 0;
 
-        for (i = 0; i < 16; ++i) {
+        for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
             if (vs_main_inventory.armor[i].limb == 7) {
                 hasAccessory = 1;
             }
@@ -518,14 +520,14 @@ static int _equipWeaponMenu(int initialize)
     vs_main_inventoryWeapon* weapon;
 
     if (initialize != 0) {
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
             index = vs_main_inventoryIndices.weapons[i];
             if ((index != 0) && (vs_main_inventory.weapons[index - 1].isEquipped != 0)) {
                 break;
             }
         }
 
-        if (i == 8) {
+        if (i == VS_INVENTORY_WEAPONS) {
             index = 0;
         }
 
@@ -551,7 +553,7 @@ static int _equipWeaponMenu(int initialize)
         count = vs_mainMenu_getItemCount(0, NULL);
         hasWeapon = 0;
 
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_WEAPONS; ++i) {
             if (vs_main_inventory.weapons[i].isEquipped != 0) {
                 hasWeapon = 1;
             }
@@ -697,7 +699,7 @@ static int _equipShieldMenu(int initialize)
     int index;
 
     if (initialize != 0) {
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
             index = vs_main_inventoryIndices.shields[i];
 
             if (index && vs_main_inventory.shields[index - 1].isEquipped) {
@@ -705,7 +707,7 @@ static int _equipShieldMenu(int initialize)
             }
         }
 
-        if (i == 8) {
+        if (i == VS_INVENTORY_SHIELDS) {
             index = 0;
         }
 
@@ -732,7 +734,7 @@ static int _equipShieldMenu(int initialize)
         count = vs_mainMenu_getItemCount(3, NULL);
         hasShield = 0;
 
-        for (i = 0; i < 8; ++i) {
+        for (i = 0; i < VS_INVENTORY_SHIELDS; ++i) {
             if (vs_main_inventory.shields[i].isEquipped != 0) {
                 hasShield = 1;
             }
@@ -874,7 +876,7 @@ static int _equipArmorMenu(int initBodyPart)
 
         bodyPart = initBodyPart;
 
-        for (i = 0; i < 16; ++i) {
+        for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
 
             index = vs_main_inventoryIndices.armor[i];
 
@@ -884,7 +886,7 @@ static int _equipArmorMenu(int initBodyPart)
             }
         }
 
-        if (i == 16) {
+        if (i == VS_INVENTORY_ARMOR) {
             index = 0;
         }
 
@@ -913,7 +915,7 @@ static int _equipArmorMenu(int initBodyPart)
         count = vs_mainMenu_getItemCount(4, NULL);
         hasArmor = 0;
 
-        for (i = 0; i < 16; ++i) {
+        for (i = 0; i < VS_INVENTORY_ARMOR; ++i) {
             if (vs_main_inventory.armor[i].limb == bodyPart) {
                 hasArmor = 1;
             }
@@ -1113,7 +1115,7 @@ static int _equipMenu(int initialize)
 
         weapon = vs_main_inventory.weapons;
 
-        for (j = 0; j < 8; ++j, ++weapon) {
+        for (j = 0; j < VS_INVENTORY_WEAPONS; ++j, ++weapon) {
             if (weapon->isEquipped != 0) {
                 vs_mainMenu_setWeaponRowFromInventory(
                     weapon, (char**)rowStrings, rowTypes, buf);
@@ -1123,7 +1125,7 @@ static int _equipMenu(int initialize)
 
         shield = vs_main_inventory.shields;
 
-        for (j = 0; j < 8; ++j, ++shield) {
+        for (j = 0; j < VS_INVENTORY_SHIELDS; ++j, ++shield) {
             if (shield->isEquipped != 0) {
                 vs_mainMenu_setShieldRowFromInventory(
                     shield, &rowStrings[2], &rowTypes[1], buf + 96);
@@ -1134,7 +1136,7 @@ static int _equipMenu(int initialize)
         for (i = 2; i < 8; ++i) {
             vs_main_inventoryArmor* armor = vs_main_inventory.armor;
 
-            for (j = 0; j < 16; ++j, ++armor) {
+            for (j = 0; j < VS_INVENTORY_ARMOR; ++j, ++armor) {
                 if (((i != 7) + armor->limb) == i) {
                     vs_mainMenu_setArmorRowFromInventory(
                         armor, &rowStrings[i * 2], &rowTypes[i], &buf[i * 96]);
@@ -1296,7 +1298,7 @@ int vs_menu3_exec(u_char* state)
         // Fallthrough
 
     case itemsTop:
-        row = _itemNavigation(0);
+        row = VS_CALLO_AFTER(vs_mod_itemNavigationDone, _itemNavigation(0));
 
         if (row == 0) {
             break;
@@ -1359,7 +1361,7 @@ int vs_menu3_exec(u_char* state)
         break;
 
     case equip:
-        row = _equipMenu(0);
+        row = VS_CALLO_AFTER(vs_mod_equipMenuDone, _equipMenu(0));
 
         if (row != 0) {
             if (row == menuSelectionQuit) {

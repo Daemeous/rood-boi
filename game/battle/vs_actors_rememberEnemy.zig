@@ -27,6 +27,7 @@ pub fn vs_actors_rememberEnemy(arg0: c_int, arg1: c_int) callconv(.c) void {
         entry.limbHp[i] = stats.limbs[i].hp;
     }
 
+    c.pc_difficulty_store(@ptrCast(entry), @ptrCast(stats)); // enemy difficulty (pc/src/enemy_difficulty.c)
     entry.statuses = stats.statuses;
 
     if ((psx.conv(c_uint, c.vs_actors_actorStateFlags(arg0)) & 0x0100_0000) != 0) {

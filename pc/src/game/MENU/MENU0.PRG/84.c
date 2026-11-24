@@ -10,6 +10,7 @@
 #include "pc/src/game/menuItem.h"
 #include "pc/src/game/spriteItem.h"
 #include <libetc.h>
+#include "pc/src/game/BATTLE/BATTLE.PRG/mod/hooks.h"
 
 static signed char _MPCostTextBuffer[16];
 
@@ -57,6 +58,15 @@ static void _setMPCost(int id)
     vs_mainmenu_setActionCost(
         0, &_MPCostTextBuffer[i], variableCost * 4 + 72, (flags >> 1) & 1);
 }
+
+#ifdef VS_CALLO
+/* The highlighted spell's MP cost, each frame; Square toggles it for Callo */
+static void _setMPCostCallo(int id)
+{
+    _setMPCost(id);
+    vs_mod_spellHighlighted(id);
+}
+#endif
 
 static char _MPCostDirectTextBuffer[16];
 
@@ -233,6 +243,7 @@ int _warlockMagicMenu(u_int initShortcutInvoked)
             vs_main_settings.cursorMemory = 1;
         }
 
+        VS_CALLO_CALL(vs_mod_markSpells((2 << 8) | 7, rowTypes));
         vs_mainmenu_setMenuRows(rowCount, (2 << 8) | 7, menuStrings, rowTypes);
 
         vs_main_settings.cursorMemory = i;
@@ -298,7 +309,7 @@ int _warlockMagicMenu(u_int initShortcutInvoked)
                 }
             }
 
-            _setMPCost(i);
+            VS_CALLO_HOOK(_setMPCost, _setMPCostCallo)(i);
         }
 
         break;
@@ -531,6 +542,7 @@ int _shamanMagicMenu(u_int initShortcutInvoked)
         if (shortcutInvoked != 0) {
             vs_main_settings.cursorMemory = 1;
         }
+        VS_CALLO_CALL(vs_mod_markSpells((2 << 8) | 8, rowTypes));
         vs_mainmenu_setMenuRows(rowCount, (2 << 8) | 8, menuStrings, rowTypes);
         vs_main_settings.cursorMemory = i;
         state = handleInput;
@@ -554,7 +566,8 @@ int _shamanMagicMenu(u_int initShortcutInvoked)
             }
             state = returnIfReady;
         } else {
-            _setMPCost(_availableShamanSpells[vs_mainMenu_getConfirmedRow()]);
+            VS_CALLO_HOOK(_setMPCost, _setMPCostCallo)(
+                _availableShamanSpells[vs_mainMenu_getConfirmedRow()]);
         }
         break;
     case returnIfReady:
@@ -632,6 +645,7 @@ int _sorcererMagicMenu(u_int initShortcutInvoked)
         if (shortcutInvoked != 0) {
             vs_main_settings.cursorMemory = 1;
         }
+        VS_CALLO_CALL(vs_mod_markSpells((2 << 8) | 9, rowTypes));
         vs_mainmenu_setMenuRows(rowCount, (2 << 8) | 9, menuStrings, rowTypes);
         vs_main_settings.cursorMemory = i;
         state = handleInput;
@@ -655,7 +669,8 @@ int _sorcererMagicMenu(u_int initShortcutInvoked)
             }
             state = returnIfready;
         } else {
-            _setMPCost(_availableSorcererSpells[vs_mainMenu_getConfirmedRow()]);
+            VS_CALLO_HOOK(_setMPCost, _setMPCostCallo)(
+                _availableSorcererSpells[vs_mainMenu_getConfirmedRow()]);
         }
         break;
     case returnIfready:
@@ -730,6 +745,7 @@ int _enchanterMagicMenu(u_int initShortcutInvoked)
         if (shortcutInvoked != 0) {
             vs_main_settings.cursorMemory = 1;
         }
+        VS_CALLO_CALL(vs_mod_markSpells((2 << 8) | 10, rowTypes));
         vs_mainmenu_setMenuRows(rowCount, (2 << 8) | 10, menuStrings, rowTypes);
         vs_main_settings.cursorMemory = i;
         state = handleInput;
@@ -753,7 +769,8 @@ int _enchanterMagicMenu(u_int initShortcutInvoked)
             }
             state = returnIfready;
         } else {
-            _setMPCost(_availableEnchanterSpells[vs_mainMenu_getConfirmedRow()]);
+            VS_CALLO_HOOK(_setMPCost, _setMPCostCallo)(
+                _availableEnchanterSpells[vs_mainMenu_getConfirmedRow()]);
         }
         break;
     case returnIfready:

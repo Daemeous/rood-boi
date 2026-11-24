@@ -7,4 +7,5 @@ const c = @import("c_146C");
 pub fn vs_actors_clearRoomEnemyMemory() callconv(.c) void {
     v.g.vs_state_currentRoomStateSlot().* = 0;
     c.vs_main_bzero(@ptrCast(v.g.D_80061078()), @intCast(@sizeOf([4]v.vs_state_RoomEnemyStates)));
+    c.pc_difficulty_scene_now(); // enemy difficulty (pc/src/enemy_difficulty.c)
 }

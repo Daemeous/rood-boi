@@ -380,6 +380,8 @@ typedef struct {
     int areaFlags[2];
 } vs_main_mapStatus_t;
 
+/* The bag as saves (and the new game's starting bag) hold it; the bag itself is
+ * vs_main_inventory_t (VS_INVENTORY_* counts, func_8006B57C_t.h). */
 typedef struct {
     vs_main_inventoryWeapon weapons[8];
     vs_main_inventoryShield shields[8]; // 0x100

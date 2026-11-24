@@ -31,6 +31,9 @@ VERSION = "0.17.0"
 PIN = {
     "x86_64-linux": ("zig-x86_64-linux-0.17.0.tar.xz",
                      "1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026"),
+    # The Windows builder without WSL (MSYS2): https://ziglang.org/download/index.json, 0.17.0 x86_64-windows
+    "x86_64-windows": ("zig-x86_64-windows-0.17.0.zip",
+                       "b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428"),
 }
 URL = "https://ziglang.org/download/{version}/{archive}"
 
@@ -108,11 +111,19 @@ def unpack(tarball):
     stem = target.name
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=target.parent) as scratch:
-        with tarfile.open(tarball) as tar:
-            for member in tar.getmembers():
-                if not (member.name == stem or member.name.startswith(stem + "/")):
-                    raise SystemExit(f"{tarball}: {member.name} is outside {stem}/: refusing to unpack")
-            tar.extractall(scratch, filter="data")
+        if str(tarball).endswith(".zip"):  # the Windows archive
+            import zipfile
+            with zipfile.ZipFile(tarball) as archive:
+                for name in archive.namelist():
+                    if not (name.rstrip("/") == stem or name.startswith(stem + "/")) or ".." in name.split("/"):
+                        raise SystemExit(f"{tarball}: {name} is outside {stem}/: refusing to unpack")
+                archive.extractall(scratch)
+        else:
+            with tarfile.open(tarball) as tar:
+                for member in tar.getmembers():
+                    if not (member.name == stem or member.name.startswith(stem + "/")):
+                        raise SystemExit(f"{tarball}: {member.name} is outside {stem}/: refusing to unpack")
+                tar.extractall(scratch, filter="data")
         if target.exists():
             shutil.rmtree(target)
         os.replace(pathlib.Path(scratch) / stem, target)
