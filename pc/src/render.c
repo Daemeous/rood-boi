@@ -1113,11 +1113,12 @@ static int instance_palette(const draw_list* list, const list_instance* in, floa
  * "f i j k # tpage .. clut .. group .. flags .. uv .. code .. quad .. polygon .."), the polygons' vertices through the instance's bone
  * palette (game units, the pose of that frame), a quad as its two triangles. Returns the triangles written, -1 when no list draws it
  * or the file cannot be written (the model painting round trip: pc/docs/Materials.md). */
-int render_mesh_dump(render_mesh mesh, const char* path)
+/* The newest unblended instance of `mesh` in the draw lists, with its palette at t = 1 (the pose of that frame); 0 when no list draws it. */
+static int posed_instance(render_mesh mesh, mesh_slot** slot_out, const list_instance** in_out, render_transform* palette)
 {
     mesh_slot* slot = lookup(mesh);
     if (!slot || !slot->cpu)
-        return -1;
+        return 0;
     const draw_list* list = NULL;
     const list_instance* in = NULL;
     for (int i = 0; i < LIST_RING; i++) {
@@ -1129,11 +1130,38 @@ int render_mesh_dump(render_mesh mesh, const char* path)
                 list = l, in = &l->instances[k];
     }
     if (!list)
-        return -1;
-    render_transform palette[RENDER_MAX_BONES];
-    int bones = in->bones;
-    if (bones > 0)
+        return 0;
+    if (in->bones > 0)
         instance_palette(list, in, 1.0f, palette);
+    *slot_out = slot, *in_out = in;
+    return 1;
+}
+/* A polygon's vertex `c` in world space through the instance's palette. */
+static void posed_vertex(const render_polygon* p, int c, const render_transform* palette, int bones, float world[3])
+{
+    world[0] = p->position[c][0], world[1] = p->position[c][1], world[2] = p->position[c][2];
+    if (bones > 0) { /* (a model without a skeleton has one transform) */
+        const render_transform* b = &palette[p->bone[c] < bones ? p->bone[c] : 0];
+        for (int a = 0; a < 3; a++)
+            world[a] = b->rotation[a][0] * p->position[c][0] + b->rotation[a][1] * p->position[c][1]
+                + b->rotation[a][2] * p->position[c][2] + b->translation[a];
+    }
+}
+static const int quad_order[2][3] = { { 0, 1, 2 }, { 1, 3, 2 } };
+/* (the page and CLUT as the draw takes them: an instance's override over the polygon's own, emissive.cpp note_instance) */
+static void posed_texture(const render_polygon* p, const list_instance* in, unsigned* page, unsigned* clut)
+{
+    *page = p->tpage | ((in->override & RENDER_OVERRIDE_TEXTURE) ? in->tpage : 0);
+    *clut = (in->override & RENDER_OVERRIDE_TEXTURE) ? (in->clut + p->clut) & 0xffff : p->clut;
+}
+int render_mesh_dump(render_mesh mesh, const char* path)
+{
+    mesh_slot* slot;
+    const list_instance* in;
+    render_transform palette[RENDER_MAX_BONES];
+    if (!posed_instance(mesh, &slot, &in, palette))
+        return -1;
+    int bones = in->bones;
     FILE* f = fopen(path, "w");
     if (!f)
         return -1;
@@ -1146,28 +1174,20 @@ int render_mesh_dump(render_mesh mesh, const char* path)
             if (p->flags & RENDER_POLY_SPRITE)
                 continue;
             int quad = (p->flags & RENDER_POLY_QUAD) != 0;
-            static const int order[2][3] = { { 0, 1, 2 }, { 1, 3, 2 } };
             for (int t = 0; t < (quad ? 2 : 1); t++) {
                 if (!pass) {
                     for (int k = 0; k < 3; k++) {
-                        int c = order[t][k];
-                        float world[3] = { p->position[c][0], p->position[c][1], p->position[c][2] };
-                        if (bones > 0) { /* (a model without a skeleton has one transform) */
-                            const render_transform* b = &palette[p->bone[c] < bones ? p->bone[c] : 0];
-                            for (int a = 0; a < 3; a++)
-                                world[a] = b->rotation[a][0] * p->position[c][0] + b->rotation[a][1] * p->position[c][1]
-                                    + b->rotation[a][2] * p->position[c][2] + b->translation[a];
-                        }
-                        fprintf(f, "v %g %g %g %.4f %.4f %.4f\n", world[0], world[1], world[2], p->rgb[c][0] / 255.0, p->rgb[c][1] / 255.0,
-                            p->rgb[c][2] / 255.0);
+                        float world[3];
+                        posed_vertex(p, quad_order[t][k], palette, bones, world);
+                        fprintf(f, "v %g %g %g %.4f %.4f %.4f\n", world[0], world[1], world[2], p->rgb[quad_order[t][k]][0] / 255.0,
+                            p->rgb[quad_order[t][k]][1] / 255.0, p->rgb[quad_order[t][k]][2] / 255.0);
                     }
                 } else {
-                    /* (the page and CLUT as the draw takes them: an instance's override over the polygon's own, emissive.cpp note_instance) */
-                    unsigned page = p->tpage | ((in->override & RENDER_OVERRIDE_TEXTURE) ? in->tpage : 0);
-                    unsigned clut = (in->override & RENDER_OVERRIDE_TEXTURE) ? (in->clut + p->clut) & 0xffff : p->clut;
+                    unsigned page, clut;
+                    posed_texture(p, in, &page, &clut);
                     fprintf(f, "f %d %d %d # tpage %04x clut %04x group 0 flags 00000000 uv %d %d %d %d %d %d code %02x quad %d polygon %x\n",
-                        v * 3 + 1, v * 3 + 2, v * 3 + 3, page, clut, p->uv[order[t][0]][0], p->uv[order[t][0]][1],
-                        p->uv[order[t][1]][0], p->uv[order[t][1]][1], p->uv[order[t][2]][0], p->uv[order[t][2]][1], p->code,
+                        v * 3 + 1, v * 3 + 2, v * 3 + 3, page, clut, p->uv[quad_order[t][0]][0], p->uv[quad_order[t][0]][1],
+                        p->uv[quad_order[t][1]][0], p->uv[quad_order[t][1]][1], p->uv[quad_order[t][2]][0], p->uv[quad_order[t][2]][1], p->code,
                         quad ? 1 + t : 0, (unsigned)i);
                     ++triangles;
                 }
@@ -1176,6 +1196,37 @@ int render_mesh_dump(render_mesh mesh, const char* path)
         }
     }
     return fclose(f) ? -1 : triangles;
+}
+/* The same triangles as render_mesh_dump, in memory (the model studio's texel locator): up to `max`; returns how many (the whole model's
+ * count is more than `max` when it is cut off: the return is then max), -1 when no list draws the mesh. Textured polygons only. */
+int render_mesh_posed(render_mesh mesh, render_posed_triangle* out, int max)
+{
+    mesh_slot* slot;
+    const list_instance* in;
+    render_transform palette[RENDER_MAX_BONES];
+    if (!posed_instance(mesh, &slot, &in, palette))
+        return -1;
+    int n = 0;
+    for (int i = 0; i < slot->polygons && n < max; i++) {
+        const render_polygon* p = &slot->cpu[i];
+        if ((p->flags & RENDER_POLY_SPRITE) || !(p->code & 4))
+            continue;
+        int quad = (p->flags & RENDER_POLY_QUAD) != 0;
+        for (int t = 0; t < (quad ? 2 : 1) && n < max; t++, n++) {
+            render_posed_triangle* o = &out[n];
+            for (int k = 0; k < 3; k++) {
+                int c = quad_order[t][k];
+                posed_vertex(p, c, palette, in->bones, o->position[k]);
+                o->uv[k][0] = p->uv[c][0], o->uv[k][1] = p->uv[c][1];
+            }
+            unsigned page, clut;
+            posed_texture(p, in, &page, &clut);
+            o->tpage = (uint16_t)page, o->clut = (uint16_t)clut;
+            o->polygon = i;
+            o->quad = quad ? 1 + t : 0;
+        }
+    }
+    return n;
 }
 /* Where list `id` draws in `target` (native VRAM pixels x, y, w, h within
  * its drawing area; MSAA copies and syncs only that much): each instance's

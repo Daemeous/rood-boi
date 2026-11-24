@@ -631,11 +631,15 @@ static int facing_away(const sort_info* s, const unsigned* xy)
 static struct {
     int on, count;
     float lo[3], hi[3];
+    int meshes; /* the meshes drawn since the reset (the texel locator reads their poses): handle and content key */
+    render_mesh mesh[16];
+    uint64_t key[16];
 } studio_bounds;
 void pc_studio_bounds_reset(void)
 {
     studio_bounds.on = 1;
     studio_bounds.count = 0;
+    studio_bounds.meshes = 0;
 }
 void pc_studio_bounds_stop(void) { studio_bounds.on = 0; }
 int pc_studio_bounds_get(float lo[3], float hi[3])
@@ -645,6 +649,13 @@ int pc_studio_bounds_get(float lo[3], float hi[3])
     memcpy(lo, studio_bounds.lo, sizeof studio_bounds.lo);
     memcpy(hi, studio_bounds.hi, sizeof studio_bounds.hi);
     return studio_bounds.count;
+}
+int pc_studio_meshes(unsigned* mesh, unsigned long long* key, int max)
+{
+    int n = studio_bounds.meshes < max ? studio_bounds.meshes : max;
+    for (int i = 0; i < n; i++)
+        mesh[i] = studio_bounds.mesh[i], key[i] = studio_bounds.key[i];
+    return n;
 }
 static void studio_bounds_add(const void* object, const void* model, const render_transform* palette, int bones)
 {
@@ -726,7 +737,14 @@ static uint32_t submit(int kind, const void* object, const void* model, unsigned
     for (int b = 0; b < c->bones; b++)
         world_transform(&draw_matrices[b], &palette[b]);
     if (studio_bounds.on)
+    {
         studio_bounds_add(object, model, palette, c->bones);
+        int seen = 0;
+        for (int i = 0; i < studio_bounds.meshes; i++)
+            seen |= studio_bounds.mesh[i] == c->mesh;
+        if (!seen && studio_bounds.meshes < 16)
+            studio_bounds.mesh[studio_bounds.meshes] = c->mesh, studio_bounds.key[studio_bounds.meshes++] = c->key;
+    }
     /* The previous frame's palette of the same draw (the n-th draw of this
      * model with these matrices in the frame). */
     palette_record* rec = NULL;

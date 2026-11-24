@@ -33,6 +33,10 @@
 #include "ui/item_names.h"
 #include "ui/mon_parse.h"
 #include "ui_text.h"
+#include "editor_overlays.h"
+#include "emissive_internal.h"
+#include "render.h"
+#include "studio_locate.h"
 
 extern "C" {
 extern int pc_hw_interpolate __attribute__((weak));
@@ -46,6 +50,9 @@ int pc_studio_scene(const pc_studio_scene_cfg* cfg, pc_studio_scene_out* out) __
 void pc_studio_bounds_reset(void) __attribute__((weak));
 void pc_studio_bounds_stop(void) __attribute__((weak));
 int pc_studio_bounds_get(float lo[3], float hi[3]) __attribute__((weak));
+int pc_studio_meshes(unsigned* mesh, unsigned long long* key, int max) __attribute__((weak));
+int pc_lights_tools_view(pc_overlay_view* out, pc_overlay_pick* pick) __attribute__((weak));
+int render_mesh_posed(render_mesh mesh, render_posed_triangle* out, int max) __attribute__((weak));
 }
 
 namespace {
@@ -473,6 +480,228 @@ void fit_camera()
     framed = true;
 }
 
+// ---------------------------------------------------------------- the texel locator (studio_locate.h)
+//
+// Each render that lands leaves the model's triangles, posed, with the view the picture was drawn with (when no change is waiting:
+// then the marker and the pick agree with the picture on screen exactly; a camera change hides the marker for the one render it
+// takes). A texel is asked for by its texture's content key and its place in that texture (what a painted page's pixel is, through
+// the sprite's slices: pc/tools/paint_live.py), or by the page, palette and page texel directly; every triangle that samples it
+// gets a footprint, drawn over the picture by pc_studio_overlay. Hovering or clicking the model picks the texel under the cursor
+// (the same maths run the other way) and leaves it for the bridge (RPC studio {action: picked}).
+
+struct Located {
+    bool on = false;
+    std::string key;                 // the texture's content key ("" when asked by page)
+    int lx = 0, ly = 0;              // the place in the texture
+    int page = 0, clut = -1, x = 0, y = 0; // asked by page (clut -1: any palette)
+    bool by_key = false;
+    std::vector<studio_locate::Hit> hits;
+    unsigned for_capture = ~0u;      // the capture the hits were made for
+    int targets = 0;                 // (page, clut, page texel) triples the key resolved to
+};
+struct PickedTexel {
+    unsigned serial = 0;
+    bool hit = false;
+    bool scroll = false; // a click: the painter's view goes to it (hover only selects)
+    studio_locate::Pick pick;
+    std::string key;     // its texture's content key and the place in the texture ("" when no use of the picture has it)
+    int lx = 0, ly = 0;
+    uint64_t model = 0;
+    int polygon = -1, quad = 0;
+    float screen[2] = { 0, 0 };
+};
+struct Capture {
+    std::vector<studio_locate::Tri> tris;
+    studio_locate::View view;
+    unsigned long long keys[16];
+    int meshes = 0;
+    unsigned serial = 0;     // counts captures
+    bool valid = false;      // the picture on screen is this capture's (no camera change waiting)
+    bool uses_known = false; // `uses` is this capture's
+    std::vector<emissive::UseInfo> uses;
+};
+Capture capture;
+Located located;
+PickedTexel picked;
+
+void capture_clear()
+{
+    capture.tris.clear();
+    capture.valid = capture.uses_known = false;
+    capture.uses.clear();
+    ++capture.serial;
+    located.hits.clear();
+    located.for_capture = ~0u;
+}
+const std::vector<emissive::UseInfo>& capture_uses()
+{
+    if (!capture.uses_known) {
+        capture.uses = emissive::use_list(true);
+        capture.uses_known = true;
+    }
+    return capture.uses;
+}
+// The triangles of the model and the view of the picture that has just landed.
+void capture_take(bool clean)
+{
+    capture.valid = false;
+    capture.uses_known = false;
+    ++capture.serial;
+    located.for_capture = ~0u;
+    if (!clean || !entered || !current)
+        return;
+    unsigned meshes[16];
+    capture.meshes = pc_studio_meshes ? pc_studio_meshes(meshes, capture.keys, 16) : 0;
+    capture.tris.clear();
+    static std::vector<render_posed_triangle> buffer;
+    buffer.resize(40000);
+    for (int m = 0; m < capture.meshes; m++) {
+        int n = render_mesh_posed ? render_mesh_posed(meshes[m], buffer.data(), (int)buffer.size()) : -1;
+        for (int i = 0; i < n; i++) {
+            studio_locate::Tri t;
+            memcpy(t.p, buffer[i].position, sizeof t.p);
+            memcpy(t.uv, buffer[i].uv, sizeof t.uv);
+            t.page = (uint16_t)(buffer[i].tpage & 31), t.clut = buffer[i].clut;
+            t.polygon = buffer[i].polygon, t.quad = buffer[i].quad, t.mesh = m;
+            capture.tris.push_back(t);
+        }
+    }
+    pc_overlay_view ov;
+    if (capture.tris.empty() || !pc_lights_tools_view || !pc_lights_tools_view(&ov, nullptr))
+        return;
+    memcpy(capture.view.view, ov.view, sizeof ov.view);
+    memcpy(capture.view.projection, ov.projection, sizeof ov.projection);
+    memcpy(capture.view.rect, ov.rect, sizeof ov.rect);
+    capture.view.valid = true;
+    capture.valid = true;
+}
+
+// The (page, clut, page texel) triples a texel of a texture is, in this picture: one for each use of that texture.
+struct PageTexel {
+    int page, clut, x, y;
+};
+std::vector<PageTexel> texel_targets(const std::string& key, int lx, int ly)
+{
+    std::vector<PageTexel> out;
+    for (const emissive::UseInfo& u : capture_uses()) {
+        int w = u.box[2] - u.box[0] + 1, h = u.box[3] - u.box[1] + 1;
+        if (u.key == key && lx >= 0 && ly >= 0 && lx < w && ly < h)
+            out.push_back({ (int)(u.page & 31), (int)u.clut, u.box[0] + lx, u.box[1] + ly });
+    }
+    return out;
+}
+// The texture of a page texel of the picture (a use whose box has it; the smallest) and the place in it.
+bool texture_of(int page, int clut, int x, int y, std::string* key, int* lx, int* ly)
+{
+    const emissive::UseInfo* best = nullptr;
+    for (const emissive::UseInfo& u : capture_uses()) {
+        if ((int)(u.page & 31) != page || (int)u.clut != clut || x < u.box[0] || x > u.box[2] || y < u.box[1] || y > u.box[3])
+            continue;
+        if (!best || (u.box[2] - u.box[0]) * (u.box[3] - u.box[1]) < (best->box[2] - best->box[0]) * (best->box[3] - best->box[1]))
+            best = &u;
+    }
+    if (!best)
+        return false;
+    *key = best->key, *lx = x - best->box[0], *ly = y - best->box[1];
+    return true;
+}
+float marker_tolerance() { return fmaxf(camera.distance * camera.zoom * num("locate.occlusion_tolerance", 0.002f), 1.0f); }
+// The hits of the asked-for texel for the current capture (made once per capture and ask).
+void locate_update()
+{
+    if (!located.on || located.for_capture == capture.serial)
+        return;
+    located.for_capture = capture.serial;
+    located.hits.clear();
+    located.targets = 0;
+    if (!capture.valid)
+        return;
+    std::vector<PageTexel> targets;
+    if (located.by_key)
+        targets = texel_targets(located.key, located.lx, located.ly);
+    else
+        targets.push_back({ located.page, located.clut, located.x, located.y });
+    located.targets = (int)targets.size();
+    for (const PageTexel& t : targets) {
+        std::vector<studio_locate::Hit> h = studio_locate::locate(capture.tris, t.page, t.clut, t.x, t.y);
+        for (auto& x : h)
+            located.hits.push_back(std::move(x));
+    }
+    studio_locate::shade(capture.tris, capture.view, located.hits, marker_tolerance());
+}
+// A pick at window pixel (x, y) of the picture: the texel there, with its texture.
+PickedTexel pick_at(float px, float py)
+{
+    PickedTexel r;
+    r.screen[0] = px, r.screen[1] = py;
+    if (!capture.valid)
+        return r;
+    r.pick = studio_locate::pick(capture.tris, capture.view, px, py);
+    r.hit = r.pick.hit;
+    if (!r.hit)
+        return r;
+    const studio_locate::Tri& t = capture.tris[(size_t)r.pick.tri];
+    r.polygon = t.polygon, r.quad = t.quad;
+    r.model = t.mesh < capture.meshes ? capture.keys[t.mesh] : 0;
+    texture_of(r.pick.page, r.pick.clut, r.pick.x, r.pick.y, &r.key, &r.lx, &r.ly);
+    return r;
+}
+ImU32 marker_colour(const char* path, float alpha_scale, const char* alpha_path, float alpha_fallback)
+{
+    float c[3] = { 255, 60, 200 };
+    if (const Json* j = at(path); j && j->type == Json::Array && j->items.size() >= 3)
+        for (int k = 0; k < 3; k++)
+            c[k] = (float)j->items[(size_t)k].number;
+    float a = fminf(fmaxf(num(alpha_path, alpha_fallback) * alpha_scale, 0), 1);
+    return IM_COL32((int)c[0], (int)c[1], (int)c[2], (int)(a * 255));
+}
+// One texel's footprints over the picture. `style`: "locate.marker" or "locate.pick".
+void draw_hits(ImDrawList* d, const std::vector<studio_locate::Hit>& hits, const std::string& style, double time)
+{
+    float hz = num((style + ".pulse_hz").c_str(), 1.5f), depth = num((style + ".pulse_depth").c_str(), 0.35f);
+    float pulse = hz > 0 ? 0.5f + 0.5f * sinf((float)(time * hz * 6.2831853)) : 1.0f; // 0..1
+    float back = num((style + ".back_alpha").c_str(), 0.3f);
+    float ring = num((style + ".ring_radius").c_str(), 14) * (1 + depth * (pulse - 0.5f));
+    float ring_w = num((style + ".ring_width").c_str(), 2), line_w = num((style + ".line_width").c_str(), 1.5f);
+    bool cross = flag((style + ".crosshair").c_str());
+    for (const studio_locate::Hit& h : hits) {
+        if (!h.on_screen)
+            continue;
+        float scale = h.visible ? 1.0f : back;
+        float glow = 1.0f - depth * (1 - pulse); // the fill breathes with the ring
+        std::vector<ImVec2> poly;
+        bool ok = true;
+        for (size_t i = 0; i + 2 < h.ring.size() && ok; i += 3) {
+            float o[2];
+            ok = studio_locate::project(capture.view, &h.ring[i], o, nullptr);
+            poly.push_back(ImVec2(o[0], o[1]));
+        }
+        if (ok && poly.size() >= 3) {
+            // (a footprint of either winding: ImGui's convex fill wants one)
+            float s = 0;
+            for (size_t i = 0; i < poly.size(); i++)
+                s += poly[i].x * poly[(i + 1) % poly.size()].y - poly[(i + 1) % poly.size()].x * poly[i].y;
+            if (s < 0)
+                std::reverse(poly.begin(), poly.end());
+            d->AddConvexPolyFilled(poly.data(), (int)poly.size(), marker_colour((style + ".color").c_str(), scale * glow, (style + ".fill_alpha").c_str(), 0.5f));
+            d->AddPolyline(poly.data(), (int)poly.size(), marker_colour((style + ".color").c_str(), scale, (style + ".outline_alpha").c_str(), 1.0f),
+                ImDrawFlags_Closed, line_w);
+        }
+        ImVec2 c(h.screen[0], h.screen[1]);
+        ImU32 col = marker_colour((style + ".color").c_str(), scale, (style + ".outline_alpha").c_str(), 1.0f);
+        if (ring > 0) {
+            d->AddCircle(c, ring + 1, IM_COL32(0, 0, 0, (int)(255 * scale * 0.6f)), 24, ring_w + 2); // (a dark edge: it reads on any colour)
+            d->AddCircle(c, ring, col, 24, ring_w);
+        }
+        if (cross && ring > 0) {
+            d->AddLine(ImVec2(c.x - ring * 1.6f, c.y), ImVec2(c.x - ring * 0.5f, c.y), col, ring_w);
+            d->AddLine(ImVec2(c.x + ring * 0.5f, c.y), ImVec2(c.x + ring * 1.6f, c.y), col, ring_w);
+            d->AddLine(ImVec2(c.x, c.y - ring * 1.6f), ImVec2(c.x, c.y - ring * 0.5f), col, ring_w);
+            d->AddLine(ImVec2(c.x, c.y + ring * 0.5f), ImVec2(c.x, c.y + ring * 1.6f), col, ring_w);
+        }
+    }
+}
+
 // ---------------------------------------------------------------- the render callbacks
 
 void studio_render()
@@ -563,6 +792,7 @@ void studio_render()
 void studio_landed()
 {
     landed_at = photo::now_seconds();
+    capture_take(entered && !(again || dirty));
     if (entered && (again || dirty)) {
         again = false;
         request();
@@ -631,6 +861,7 @@ std::string leave()
         return "";
     entered = false;
     pc_studio_hide_bodies = 0;
+    capture_clear();
     if (pc_studio_bounds_stop)
         pc_studio_bounds_stop();
     remove_look();
@@ -711,6 +942,7 @@ void part_release(const std::string& owner)
             pc_glows_give_back();
         glows_kept = false;
         pc_studio_hide_bodies = 0;
+        capture_clear();
         remove_look();
         current = nullptr;
     }
@@ -724,6 +956,7 @@ void part_reset()
 {
     entered = leaving = false;
     pc_studio_hide_bodies = 0;
+    capture_clear();
     remove_look();
     current = nullptr;
 }
@@ -738,6 +971,21 @@ std::string jnum(double v)
     snprintf(b, sizeof b, "%.6g", v);
     return b;
 }
+std::string pick_json(const PickedTexel& r)
+{
+    if (!r.hit && !r.serial)
+        return "{\"hit\":false,\"serial\":0}";
+    char model[24];
+    snprintf(model, sizeof model, "%010llx", (unsigned long long)r.model);
+    return "{\"serial\":" + std::to_string(r.serial) + ",\"hit\":" + (r.hit ? "true" : "false") + ",\"scroll\":" + (r.scroll ? "true" : "false")
+        + ",\"page\":" + std::to_string(r.pick.page) + ",\"clut\":" + std::to_string(r.pick.clut) + ",\"x\":" + std::to_string(r.pick.x)
+        + ",\"y\":" + std::to_string(r.pick.y) + ",\"u\":" + jnum(r.pick.u) + ",\"v\":" + jnum(r.pick.v) + ",\"key\":" + jstr(r.key)
+        + ",\"lx\":" + std::to_string(r.lx) + ",\"ly\":" + std::to_string(r.ly) + ",\"model\":" + jstr(r.model ? model : "")
+        + ",\"label\":" + jstr(std::string(r.model ? "m" + std::string(model) : std::string()) + studio_locate::page_label(r.pick.page, r.pick.clut))
+        + ",\"polygon\":" + std::to_string(r.polygon) + ",\"quad\":" + std::to_string(r.quad) + ",\"world\":[" + jnum(r.pick.world[0]) + ","
+        + jnum(r.pick.world[1]) + "," + jnum(r.pick.world[2]) + "],\"screen\":[" + jnum(r.screen[0]) + "," + jnum(r.screen[1]) + "]}";
+}
+
 std::string state_json()
 {
     std::string j = "{\"entered\":";
@@ -766,8 +1014,54 @@ std::string state_json()
     j += ",\"leaving\":";
     j += leaving ? "true" : "false";
     j += ",\"error\":" + jstr(load_error);
+    j += ",\"capture\":{\"triangles\":" + std::to_string(capture.tris.size()) + ",\"meshes\":" + std::to_string(capture.meshes)
+        + ",\"valid\":" + (capture.valid ? "true" : "false") + ",\"serial\":" + std::to_string(capture.serial) + "}";
     return j + "}";
 }
+}
+
+// ---------------------------------------------------------------- the locator's picture and the cursor
+
+// The picture takes clicks (dev_overlay.cpp hands them to ImGui when the editor is hidden): the studio is open and picks.
+extern "C" int pc_studio_wants_mouse(void)
+{
+    const Json* m = at("locate.pick_on");
+    return entered && capture.valid && !(m && m->type == Json::String && m->string == "off");
+}
+extern "C" void pc_studio_overlay(void)
+{
+    if (!entered || !capture.valid || !capture.view.valid)
+        return;
+    ImGuiIO& io = ImGui::GetIO();
+    const float* r = capture.view.rect;
+    bool in_view = io.MousePos.x >= r[0] && io.MousePos.y >= r[1] && io.MousePos.x < r[0] + r[2] && io.MousePos.y < r[1] + r[3];
+    std::string mode = at("locate.pick_on") && at("locate.pick_on")->type == Json::String ? at("locate.pick_on")->string : "hover";
+    bool clicked = in_view && !io.WantCaptureMouse && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+    if (in_view && !io.WantCaptureMouse && (clicked || mode == "hover") && mode != "off") {
+        PickedTexel p = pick_at(io.MousePos.x, io.MousePos.y);
+        bool same = p.hit == picked.hit && p.pick.page == picked.pick.page && p.pick.clut == picked.pick.clut && p.pick.x == picked.pick.x
+            && p.pick.y == picked.pick.y && picked.serial != 0;
+        if ((p.hit && (!same || clicked)) || (clicked && !p.hit)) {
+            p.serial = picked.serial + 1;
+            p.scroll = clicked && flag("locate.click_scrolls");
+            picked = p;
+        }
+    }
+    ImDrawList* d = ImGui::GetForegroundDrawList();
+    locate_update();
+    if (located.on)
+        draw_hits(d, located.hits, "locate.marker", ImGui::GetTime());
+    if (picked.hit && flag("locate.pick.show") && capture.valid) {
+        // the picked texel's own footprint (made now for this capture; the cursor's texel is cheap)
+        static std::vector<studio_locate::Hit> shown;
+        static unsigned shown_serial = ~0u, shown_capture = ~0u;
+        if (shown_serial != picked.serial || shown_capture != capture.serial) {
+            shown_serial = picked.serial, shown_capture = capture.serial;
+            shown = studio_locate::locate(capture.tris, picked.pick.page, picked.pick.clut, picked.pick.x, picked.pick.y);
+            studio_locate::shade(capture.tris, capture.view, shown, marker_tolerance());
+        }
+        draw_hits(d, shown, "locate.pick", ImGui::GetTime());
+    }
 }
 
 // ---------------------------------------------------------------- the Studio window (dev overlay: Window > Studio)
@@ -881,7 +1175,7 @@ extern "C" void pc_studio_window(void)
         bool changed = false;
         if (ImGui::CollapsingHeader("Stage, camera and look values")) {
             Json& root = cfg();
-            for (const char* group : { "stage", "camera", "model", "turntable", "backdrop" })
+            for (const char* group : { "stage", "camera", "model", "turntable", "backdrop", "locate" })
                 if (Json* g = root.get(group))
                     if (ImGui::TreeNode(group)) {
                         changed |= rows(*g, std::string(group) + ".", 1);
@@ -1088,8 +1382,77 @@ extern "C" int pc_studio_rpc(const char* params_text, char* out, int size)
                 + ",\"name\":" + jstr(i.name) + ",\"file\":" + jstr(i.file) + "}";
         }
         result = ",\"count\":" + std::to_string(count) + ",\"items\":" + list + "]";
+    } else if (action == "locate") {
+        // {key, x, y}: texel (x, y) of the texture with that content key; {page, clut, x, y}: a texel of a texture page (clut omitted: any
+        // palette); {label: "m<model>_p<page>_c<clut>", x, y}: a painted page's pixel; {clear: true}: no marker. The reply lists where it is.
+        float x = 0, y = 0, v;
+        if (const Json* c = p.get("clear"); c && (c->type == Json::Bool ? c->boolean : c->number != 0)) {
+            located = Located();
+        } else if (!number("x", &x) || !number("y", &y)) {
+            why = "locate needs x and y with a key, a label or a page";
+        } else {
+            Located l;
+            l.on = true;
+            l.lx = l.x = (int)x, l.ly = l.y = (int)y;
+            std::string key = text("key"), label = text("label");
+            int page = 0, clut = 0;
+            uint64_t model = 0;
+            if (!label.empty()) {
+                if (!studio_locate::parse_label(label, &page, &clut, &model))
+                    why = "label: m<model>_p<page>_c<clut>";
+                l.page = page, l.clut = clut;
+            } else if (!key.empty()) {
+                l.by_key = true, l.key = key;
+            } else if (number("page", &v)) {
+                l.page = (int)v;
+                l.clut = number("clut", &v) ? (int)v : -1;
+            } else {
+                why = "locate needs a key, a label or a page";
+            }
+            if (why.empty())
+                located = l;
+        }
+        if (why.empty()) {
+            located.for_capture = ~0u;
+            locate_update();
+            std::string hits = "[";
+            int n = 0;
+            for (const studio_locate::Hit& h : located.hits) {
+                const studio_locate::Tri& t = capture.tris[(size_t)h.tri];
+                hits += (n++ ? "," : "") + std::string("{\"polygon\":") + std::to_string(t.polygon) + ",\"quad\":" + std::to_string(t.quad)
+                    + ",\"mesh\":" + std::to_string(t.mesh) + ",\"centre\":[" + jnum(h.centre[0]) + "," + jnum(h.centre[1]) + ","
+                    + jnum(h.centre[2]) + "],\"screen\":" + (h.on_screen ? "[" + jnum(h.screen[0]) + "," + jnum(h.screen[1]) + "]" : "null")
+                    + ",\"visible\":" + (h.visible ? "true" : "false") + ",\"area\":" + jnum(h.area) + "}";
+            }
+            result = ",\"locate\":{\"on\":" + std::string(located.on ? "true" : "false") + ",\"captured\":" + (capture.valid ? "true" : "false")
+                + ",\"textures\":" + std::to_string(located.targets) + ",\"triangles\":" + std::to_string(located.hits.size()) + ",\"hits\":" + hits
+                + "]}";
+        }
+    } else if (action == "pick" || action == "picked") {
+        // pick {x, y}: the texel under window pixel (x, y) of the picture, and (tell, default true) left for the bridge as the studio's pick;
+        // picked: the last pick (a hover or a click in the window, or this action), by its serial
+        if (action == "pick") {
+            float x = 0, y = 0;
+            if (!number("x", &x) || !number("y", &y)) {
+                why = "pick needs x and y (window pixels)";
+            } else {
+                PickedTexel r = pick_at(x, y);
+                const Json* tell = p.get("tell");
+                if (r.hit && (!tell || (tell->type == Json::Bool ? tell->boolean : tell->number != 0))) {
+                    r.serial = picked.serial + 1;
+                    r.scroll = true;
+                    picked = r;
+                } else if (!r.hit) {
+                    result = ",\"pick\":{\"hit\":false,\"captured\":" + std::string(capture.valid ? "true" : "false") + "}";
+                }
+                if (r.hit)
+                    result = ",\"pick\":" + pick_json(r);
+            }
+        } else {
+            result = ",\"pick\":" + pick_json(picked);
+        }
     } else if (action != "state") {
-        why = "action: state, enter, leave, summon, clear, camera, look, turntable, backdrop, get, list";
+        why = "action: state, enter, leave, summon, clear, camera, look, turntable, backdrop, locate, pick, picked, get, list";
     }
     if (!why.empty()) {
         snprintf(out, (size_t)size, "%s", why.c_str());

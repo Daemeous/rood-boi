@@ -1399,6 +1399,7 @@ for source in [
     root / "pc/src/photo_capture.cpp",
     root / "pc/src/photo_input.cpp",
     root / "pc/src/studio.cpp",
+    root / "pc/src/studio_locate.cpp",
     root / "pc/src/cutscene.cpp",
     root / "pc/src/cutscene_sequencer.cpp",
     root / "pc/src/cutscene_camera.cpp",

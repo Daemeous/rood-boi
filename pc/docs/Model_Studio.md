@@ -38,3 +38,39 @@ Looks: `neutral` is a key light (a sun) and a sky, the room's own lights, glows,
 - The stage is a room-format block (so ray tracing, probes and shadows see it). Its black facets of the first build were the old room's texture effects: their per-frame handlers (`vs_field_textureEffectCount` slots, BATTLE 2842C.c) wrote UV bytes at the old room's polygon offsets, and in the stage's layout those bytes are vertex words, which the native room mesh re-decoded (`mesh_follow`) into holes and slivers; `scene_dump` is captured before the writes, so it looked clean. The studio zeroes the count when it builds the stage; the render's rewind puts it back. `studio_smoke` checks 0 black pixels over 15 views and that the room's effects are back after leaving.
 - Animations are not scrubbed or chosen yet (P7): every render replays from M, so a model shows the pose of the same few ticks.
 - Names: enemies have theirs; characters and weapons are named by their id.
+
+## The texel locator (Aseprite and the studio, both ways; Gitea #37)
+
+Code: `pc/src/studio_locate.cpp` (the maths: no game, no ImGui), `studio.cpp` (capture, marker, cursor, RPC), `render.c render_mesh_posed` (the posed triangles of a drawn model), `pc/tools/paint_live.py` (the bridge) and `pc/tools/aseprite/rood-live/rood-live.lua` (the extension, 1.3.0). Proof: `pc/tests/studio_locate_smoke.py` (the game), `pc/tests/aseprite_test.py` and `aseprite_extension_test.lua` (the bridge and the extension without Aseprite or the game).
+
+### What Aseprite's Lua API can report (the spike; read from the API docs, github.com/aseprite/api, and tried against the installed Aseprite 1.3.18)
+
+- Hover is possible, by polling. There is no mouse-move event (`app.events` has `sitechange`, `beforecommand`, `aftercommand`, `fgcolorchange`, `bgcolorchange`; `sprite.events` has `change`, `filenamechange`; a `Dialog` canvas gets mouse events only over the dialog's own canvas, not the sprite's). But `app.editor` (the active editor; nil in batch mode `-b`) has read-only `spritePos` (the sprite pixel under the cursor: "the pixel that will change if the user clicks") and `mousePos`, and read/write `scroll` (the sprite pixel the view is centred on) and `zoom`. A `Timer` (50 ms) reading `spritePos` is the hover. It has no event for entering or leaving the canvas, so the extension sends only a position inside the canvas that changed.
+- Selecting a texel: `sprite.selection:select(Rectangle(x, y, 1, 1))` (tried in batch mode). Scrolling: `app.editor.scroll = {x = x + 0.5, y = y + 0.5}`. Making another open sprite the active one: `app.sprite = sprite`.
+- Not needed, but there if hover is ever too much: `app.editor:askPoint{...}` (a modal click on the canvas, `onclick`/`onchange`/`oncancel`), `app.events:on("fgcolorchange")` (the eyedropper), `sprite.events:on("change")`, a selection read from `sprite.selection`, and a custom tool is not scriptable. The hover is switchable (`Rood live: locate hover on/off`; preference `hover`).
+
+### Aseprite to the studio
+
+The extension sends the cursor's pixel as text (`{"locate":{"material": sprite title, "x", "y"}}`) over the live-paint link. The bridge turns the page pixel into the texture it is in (`seed.json` slices: a model's page is boxes of textures, each with its content key; a room texture is the sprite itself) and the place in it, and calls RPC `studio locate {key, x, y}`. The studio finds the texture's uses in the picture (`emissive::use_list`: the page, palette and box it sits at in this picture, which is not the page the sprite was exported from: a model follows its texture slot), turns the texel into a page texel, and `studio_locate::locate` finds every triangle whose texture coordinates cover it: the texel's square is cut out of the triangle in texture space (Sutherland-Hodgman) and carried back onto the posed triangle by barycentres, so the footprint is the texel's exact shape on the surface, per triangle (shared or mirrored coordinates: several footprints). The marker is drawn over the picture by `pc_studio_overlay` (the ImGui foreground, so it is in `present_dump` and a screenshot): the footprint filled and outlined, a ring and a crosshair at its centre, pulsing; where the surface faces away or something is in front, `back_alpha` of it.
+
+### The studio to Aseprite
+
+The cursor over the model (`locate.pick_on`: `hover`, `click` or `off`) picks the texel under it: the nearest triangle at the pixel (the perspective-correct barycentre of its corners' texture coordinates). The reply names the page and palette texel and the texture's key and place in it; the bridge polls RPC `studio picked` (0.1 s), turns the key and place into the sprite title and pixel (the model's own page when several have the texture) and sends `{"select": {...}}`. The extension selects the pixel and, for a click (`locate.click_scrolls`), scrolls the view to it. A hover only selects.
+
+### RPC
+
+`studio {action: locate, key|label|page(+clut), x, y}` (or `clear: true`): the footprints (polygon, centre, window pixel, visible, area), the texture count and the triangle count. `{action: pick, x, y, tell}`: the texel under the window pixel (`tell`, default true, leaves it as the studio's pick for the bridge). `{action: picked}`: the studio's last pick with a serial that grows. `state` gains `capture` (triangles, meshes, whether the picture's capture is valid).
+
+### Data (`locate` in studio.json)
+
+`pick_on`, `click_scrolls`, `occlusion_tolerance` (a fraction of the camera distance), `marker` (the Aseprite cursor's: `color`, `fill_alpha`, `outline_alpha`, `line_width`, `ring_radius`, `ring_width`, `crosshair`, `pulse_hz` (0: steady), `pulse_depth`, `back_alpha`) and `pick` (the studio cursor's own texel, the same members, and `show`). The Studio window lists them like the rest.
+
+### How it holds still
+
+Each render that lands leaves the model's posed triangles and the view the picture was drawn with, only when no change is waiting (a camera change, a re-frame): the marker and the pick agree with the picture on screen to the pixel. While a camera change renders the marker is not drawn (the picture still shows the old view and the new view is not on screen yet); when the picture lands it is at the new place. A running turntable captures every render, so the marker follows the model. Nothing of this touches the game: the overlay is drawn only while the studio is entered, and the studio's leaving gives the game back as before.
+
+### Limits
+
+- Hidden-ness is the CPU's: a footprint is dimmed where another triangle of the model is nearer at its centre (`occlusion_tolerance`), not per pixel of the footprint, and not behind the stage.
+- A texel is its page's pixel (palette indices are not looked at): two palettes of one texture are two pages, and the sprite titles name the palette (`_c<clut>`).
+- The marker marks the posed model of the last render; models not drawn through the object builders (none in the studio) are not captured.

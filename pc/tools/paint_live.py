@@ -9,7 +9,12 @@ a channel layer's pixel that differs from the game's value wins, else the Materi
 tells the extension the layers, so it carries no list of its own.
 
 A message from the extension is one binary frame: u32 big-endian header length, the header (JSON: material, layer, x, y, w, h,
-canvas [W, H]: the cel of that channel layer, its offset on the canvas), then the cel's w x h RGBA bytes. The reply is a text frame (JSON:
+canvas [W, H]: the cel of that channel layer, its offset on the canvas), then the cel's w x h RGBA bytes. A text frame is "hello" (the reply is the greeting) or the cursor: {"locate": {"material": the sprite's title, "x", "y"}}, the texel
+the painter's cursor is over (the extension's hover), which the bridge turns into the texture's content key and the place in it (the page's
+slices: a model's page is boxes of textures) and gives the running game's studio (RPC studio locate): the texel's footprint is marked on
+the summoned model. The other way, the bridge watches the studio's pick (RPC studio picked: a hover or a click on the model in the
+studio's window) and sends the extension {"select": {"material", "x", "y", "scroll"}}: the texel to select (and, for a click, to scroll
+the view to). The reply is a text frame (JSON:
 ok, game: the game is reachable, note; the greeting adds the presets: name, colour, about (their values as text), and the layers). Importing a layer is exactly the import's: transparent keeps the game's value (over_seed),
 a texel's gray is its map value, the catalog entry of the painted object is made once."""
 import argparse
@@ -41,6 +46,7 @@ class Bridge:
         self.rpc = rpc or rood_rpc.DEFAULT_SOCKET
         self.ns = argparse.Namespace(dir=str(self.folder), layer=layer, catalog=catalog, normal_format="auto", keep_seed=False)
         self.game, self.sent, self.entries, self.lock = None, {}, set(), threading.Lock()
+        self.pick_serial = None  # the studio's pick last passed on (None: the first look only learns it)
         self.layers = {}  # label -> {channel or "material": the canvas the extension sent last}
         self.preset_stamp, self.presets = None, []
         self.reload_presets()
@@ -172,19 +178,100 @@ class Bridge:
             return {"ok": True, "game": self.game is not None, "note": "unchanged"}
         return {"ok": True, "game": alive, "note": "" if alive else "the game is not running (the saved file still imports)"}
 
+    # ------------------------------------------------------------------------------------------------- the texel locator
+
+    def texture_of(self, label, x, y):
+        """A page pixel as (texture content key, x, y in the texture), or None: a model's page is boxes of textures (the seed's slices),
+        a room's texture is the whole sprite."""
+        material = self.labels.get(label)
+        if not material:
+            return None
+        rec = material[1]
+        if rec.get("slices"):
+            inside = [sl for sl in rec["slices"] if sl["box"][0] <= x <= sl["box"][2] and sl["box"][1] <= y <= sl["box"][3]]
+            if not inside:
+                return None
+            sl = min(inside, key=lambda sl: (sl["box"][2] - sl["box"][0]) * (sl["box"][3] - sl["box"][1]))
+            return sl["key"], x - sl["box"][0], y - sl["box"][1]
+        return (rec["key"], x, y) if 0 <= x < rec["w"] and 0 <= y < rec["h"] else None
+
+    def pixel_of(self, key, lx, ly, model=""):
+        """A texel of a texture as (the sprite's title, x, y on its canvas); of several pages with the texture the model's own is preferred."""
+        found = []
+        for title, (label, rec) in self.labels.items():
+            for sl in rec.get("slices") or [{"key": rec["key"], "box": [0, 0, rec["w"] - 1, rec["h"] - 1]}]:
+                if sl["key"] == key and lx <= sl["box"][2] - sl["box"][0] and ly <= sl["box"][3] - sl["box"][1]:
+                    found.append((0 if model and model in (rec.get("model"), rec.get("model_legacy")) else 1, title,
+                                  sl["box"][0] + lx, sl["box"][1] + ly))
+        return min(found)[1:] if found else None
+
+    def locate(self, header):
+        """The painter's cursor: the texel marked on the model in the game's studio. The reply is the layer messages' (ok, game, note)."""
+        title, x, y = str(header.get("material", "")), int(header.get("x", -1)), int(header.get("y", -1))
+        at = self.texture_of(title, x, y)
+        if not at:
+            return {"ok": True, "game": self.game is not None, "locate": True, "note": ""}  # (a texel outside any texture, or a sprite that is not ours)
+        with self.lock:
+            if not self.connect():
+                return {"ok": True, "game": False, "locate": True, "note": ""}
+            try:
+                got = self.game.call("studio", action="locate", key=at[0], x=at[1], y=at[2])
+            except rood_rpc.RpcError as e:
+                return {"ok": True, "game": True, "locate": True, "note": f"the studio: {e}"}
+            except (OSError, ValueError):
+                self.game = None
+                return {"ok": True, "game": False, "locate": True, "note": ""}
+        found = got.get("locate", {})
+        return {"ok": True, "game": True, "locate": True, "triangles": found.get("triangles", 0),
+                "note": "" if found.get("triangles") else "that texel is not on the model shown"}
+
+    def picked(self):
+        """The studio's newest pick as the extension's select message (a dict), when it is one not passed on yet; else None."""
+        with self.lock:
+            if not self.connect():
+                return None
+            try:
+                pick = self.game.call("studio", action="picked").get("pick") or {}
+            except rood_rpc.RpcError:
+                return None  # (no studio in this game)
+            except (OSError, ValueError):
+                self.game = None
+                return None
+        serial = pick.get("serial", 0)
+        first = self.pick_serial is None
+        if serial == self.pick_serial or serial is None:
+            return None
+        self.pick_serial = serial
+        if first or not pick.get("hit") or not pick.get("key"):
+            return None
+        where = self.pixel_of(pick["key"], int(pick["lx"]), int(pick["ly"]), pick.get("model", ""))
+        if not where:
+            return None
+        return {"select": {"material": where[0], "x": where[1], "y": where[2], "scroll": bool(pick.get("scroll"))}}
+
     def message(self, ws, kind, data):
         started = time.monotonic()
         try:
             if kind == miniws.TEXT:
+                text = data.decode("utf-8", "replace").strip()
+                if text.startswith("{"):
+                    header = json.loads(text)
+                    if isinstance(header.get("locate"), dict):
+                        reply = self.locate(header["locate"])
+                        reply["ms"] = round((time.monotonic() - started) * 1000, 1)
+                        return reply
                 self.connect()
                 self.reload_presets()
                 return self.greeting("hello")
             (n,) = struct.unpack(">I", data[:4])
             reply = self.apply(json.loads(data[4:4 + n].decode()), data[4 + n:])
-        except (ValueError, KeyError, struct.error, TypeError) as e:
+        except (ValueError, KeyError, struct.error, TypeError, AttributeError) as e:
             reply = {"ok": False, "game": self.game is not None, "note": f"bad message: {e}"}
         reply["ms"] = round((time.monotonic() - started) * 1000, 1)
         return reply
+
+
+PICK_POLL = 0.1  # seconds between looks at the studio's pick
 
 
 def serve(bridge, port, log=lambda text: print(text, flush=True)):
@@ -197,16 +284,33 @@ def serve(bridge, port, log=lambda text: print(text, flush=True)):
             except (miniws.Closed, OSError):
                 return
             log(f"live: Aseprite connected")
+            sending, alive = threading.Lock(), threading.Event()
+
+            def send(text):
+                with sending:
+                    ws.send(text)
+
+            def watch_picks():  # (the studio's pick, to the painter: select that texel)
+                bridge.pick_serial = None
+                while not alive.wait(PICK_POLL):
+                    try:
+                        message = bridge.picked()
+                        if message:
+                            send(json.dumps(message))
+                    except OSError:
+                        return
             bridge.connect()
-            ws.send(json.dumps(bridge.greeting("connected")))
+            send(json.dumps(bridge.greeting("connected")))
+            threading.Thread(target=watch_picks, daemon=True).start()
             while True:
                 got = ws.recv()
                 if got is None:
                     break
                 try:
-                    ws.send(json.dumps(bridge.message(ws, *got)))
+                    send(json.dumps(bridge.message(ws, *got)))
                 except OSError:
                     break
+            alive.set()
             log("live: Aseprite disconnected")
 
     class Server(socketserver.ThreadingTCPServer):

@@ -42,6 +42,21 @@
     "fixed_dt": 0,
     "interval": 0.02
   },
+  "locate": {
+    "about": "The texel locator (Aseprite <-> studio). marker: where the texel the painter points at (Aseprite's cursor, or RPC studio locate) lands on the model: the texel's footprint on each triangle that samples it (filled, outlined) and a ring at its centre; colour r,g,b 0..255, alphas 0..1, sizes in window pixels, pulse_hz 0 = steady, back_alpha = how much of it shows where the surface faces away or is hidden. pick: the texel under the studio's own cursor. pick_on: hover (every texel the cursor crosses is sent to Aseprite) | click | off; click_scrolls: a click also scrolls Aseprite's view to the texel (hover only selects it).",
+    "pick_on": "hover",
+    "click_scrolls": true,
+    "occlusion_tolerance": 0.002,
+    "marker": {
+      "color": [255, 40, 200], "fill_alpha": 0.55, "outline_alpha": 1, "line_width": 1.5,
+      "ring_radius": 14, "ring_width": 2, "crosshair": true, "pulse_hz": 1.5, "pulse_depth": 0.35, "back_alpha": 0.3
+    },
+    "pick": {
+      "show": true,
+      "color": [40, 220, 255], "fill_alpha": 0.45, "outline_alpha": 1, "line_width": 1.5,
+      "ring_radius": 9, "ring_width": 2, "crosshair": false, "pulse_hz": 0, "pulse_depth": 0, "back_alpha": 0.3
+    }
+  },
   "backdrop": {
     "about": "stage: the stage; solid: no stage (no floor, wall or drop shadow), the model on one colour (r, g, b 0..255) drawn as the game's own background, not lit.",
     "mode": "stage",

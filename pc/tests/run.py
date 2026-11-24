@@ -181,7 +181,9 @@ def suites(args, mode="egl"):
         Suite("aseprite", [PY, str(TESTS / "aseprite_test.py")], 60, binary=None,
               sources=[ROOT / "pc/tools/aseprite_io.py", ROOT / "pc/tools/miniws.py", ROOT / "pc/tools/paint_live.py",
                        ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/room_blender.py", ROOT / "pc/tools/paint_channels.py",
-                       ROOT / "pc/tools/material_presets.py", ROOT / "pc/tools/aseprite/channels.json"],
+                       ROOT / "pc/tools/material_presets.py", ROOT / "pc/tools/aseprite/channels.json",
+                       ROOT / "pc/tools/aseprite/rood-live/rood-live.lua", ROOT / "pc/tools/aseprite/rood-live/package.json",
+                       TESTS / "aseprite_extension_test.lua"],
               note="painting height, metal and roughness in Aseprite without Aseprite or the game (the channel table's rows): the .aseprite reader (offsets, linked and "
                    "raw cels, groups, palettes, other colour depths), the export's files, import and watch writing only the painted "
                    "channel and texels, the WebSocket framing, the live bridge up to the RPC call"),
@@ -693,6 +695,14 @@ def suites(args, mode="egl"):
                  sources=[TESTS / "studio_smoke.py", ROOT / "pc/src/studio.cpp", ROOT / "pc/src/studio.c",
                           ROOT / "pc/tools/studio_scan.py", ROOT / "pc/assets/studio/studio.json"])]
           if args.save.exists() else []),
+        *([Suite("studio_locate_smoke", [PY, str(TESTS / "studio_locate_smoke.py"), "--card", str(args.save)], 600,
+                 note="the model studio's texel locator (Aseprite <-> studio): picks over a summoned character, each texel asked for lands on the model "
+                      "where it was picked and a pick at the footprint gives it back (by page, label and texture key), the marker is in the picture in its "
+                      "data colour with the rest of the picture exactly the one without it, steady, following an orbit, on each place a shared texel "
+                      "has; a nothing-texel has no footprint, clearing and leaving take the marker away; hovering and clicking the model in the window pick",
+                 sources=[TESTS / "studio_locate_smoke.py", ROOT / "pc/src/studio.cpp", ROOT / "pc/src/studio_locate.cpp",
+                          ROOT / "pc/src/studio_locate.h", ROOT / "pc/assets/studio/studio.json"])]
+          if args.save.exists() else []),
         Suite("cutscene_sequencer_smoke", [PY, str(TESTS / "cutscene_sequencer_smoke.py")], 600,
               note="sampled event tracks, exact key seek, scene lighting timing and save/reload; "
                    "synthetic SDL camera input with F1 closed/open (private Xvfb for keyboard focus)"),
@@ -1072,7 +1082,7 @@ CHECKPOINT_SUITES = {
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "data_menu_gutter_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "engine_reload_render_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke", "classic_panels_smoke",
-    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pose_smoke", "photo_firstmove_smoke", "photo_savepoint_smoke", "photo_pace_smoke", "photo_full_room_smoke", "studio_smoke",
+    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pose_smoke", "photo_firstmove_smoke", "photo_savepoint_smoke", "photo_pace_smoke", "photo_full_room_smoke", "studio_smoke", "studio_locate_smoke",
     "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",
     "text_fade_smoke", "menu_fade_smoke", "ui_text_msdf_smoke",
 }
@@ -1085,7 +1095,7 @@ CHECKPOINT_SUITES = {
 # summed time / --heavy-jobs is a floor for the run's wall time).
 HEAVY_SUITES = {
     "glow_stability_smoke", "save_point_glow_smoke", "probe_gi_smoke", "gi_smoke", "gi_repeat_smoke", "gi_lag_smoke", "nrd_smoke",
-    "rt_camera_smoke", "studio_smoke", "sky_smoke", "game_sky_smoke", "lighting_presets_smoke", "emissive_smoke", "ui_ashley_stability_smoke",
+    "rt_camera_smoke", "studio_smoke", "studio_locate_smoke", "sky_smoke", "game_sky_smoke", "lighting_presets_smoke", "emissive_smoke", "ui_ashley_stability_smoke",
 }
 
 

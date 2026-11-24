@@ -63,6 +63,9 @@ int pc_studio_room_ready(void);
 void pc_studio_bounds_reset(void);
 int pc_studio_bounds_get(float lo[3], float hi[3]);
 extern int pc_studio_hide_bodies;
+/* The meshes (render.h handles) and their content keys (model_key.h) the renderer drew since pc_studio_bounds_reset: the texel locator
+ * (studio.cpp) reads their poses. Returns how many (at most max). */
+int pc_studio_meshes(unsigned* mesh, unsigned long long* key, int max);
 
 #ifdef __cplusplus
 }

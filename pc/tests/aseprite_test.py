@@ -554,6 +554,81 @@ with tempfile.TemporaryDirectory() as d:
     check(("aaaaaaaaaa", "g100", "metal") not in ncleared and npushed[-1][2] == "metal", "(metal, which this texture's game has a map for, is pushed back as before)")
     os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")
 
+    # ---------------------------------------------------------------- the texel locator (Gitea #37): Aseprite <-> the studio, with a game that is faked
+    class StudioGame:
+        """The studio's two actions the bridge uses: locate (recorded) and picked (what the test has the studio pick)."""
+        def __init__(self):
+            self.located, self.pick = [], {"serial": 0}
+
+        def call(self, method, **kw):
+            assert method == "studio"
+            if kw["action"] == "locate":
+                self.located.append(kw)
+                return {"locate": {"triangles": 2 if kw["key"] == "k2" else 0}}
+            return {"pick": self.pick}
+    loc_dir = d / "locate_pkg"
+    (loc_dir).mkdir()
+    slices = [{"key": "k1", "box": [16, 32, 47, 63]}, {"key": "k2", "box": [64, 0, 95, 31]}]
+    (loc_dir / "seed.json").write_text(json.dumps({"labels": {
+        "mabc_p10_c3b70": {"key": "page", "object": "mabc", "w": 256, "h": 256, "model": "abc", "slices": slices},
+        "mother_p10_c3b70": {"key": "page", "object": "mother", "w": 256, "h": 256, "model": "other", "slices": [slices[1]]},
+        "5555_10": {"key": "5555", "object": "g1", "w": 8, "h": 8}}}))
+    lb = paint_live.Bridge(loc_dir, layer=str(d / "layer-locate"), catalog=str(d / "cat-locate.json"))
+    lb.game = StudioGame()
+    check(lb.texture_of("mabc_p10_c3b70", 20, 40) == ("k1", 4, 8) and lb.texture_of("mabc_p10_c3b70", 70, 5) == ("k2", 6, 5),
+          "a pixel of a model's page is a texel of the texture whose box holds it (its content key and the place in it)")
+    check(lb.texture_of("mabc_p10_c3b70", 0, 0) is None and lb.texture_of("nothing", 1, 1) is None, "a pixel outside every box, or of no package's sprite, is none")
+    check(lb.texture_of("5555_10", 3, 4) == ("5555", 3, 4) and lb.texture_of("5555_10", 9, 4) is None, "a room texture's sprite is the texture itself")
+    reply = lb.message(None, miniws.TEXT, b'{"locate":{"material":"mabc_p10_c3b70","x":70,"y":5}}')
+    check(lb.game.located == [{"action": "locate", "key": "k2", "x": 6, "y": 5}] and reply["ok"] and reply["locate"] and reply["triangles"] == 2,
+          f"the cursor's pixel is asked of the studio as that texel: {lb.game.located} {reply}")
+    reply = lb.message(None, miniws.TEXT, b'{"locate":{"material":"mabc_p10_c3b70","x":20,"y":40}}')
+    check(reply["ok"] and reply["triangles"] == 0 and "not on the model" in reply["note"], "a texel the model shown does not use is said so")
+    lb.message(None, miniws.TEXT, b'{"locate":{"material":"mabc_p10_c3b70","x":0,"y":0}}')
+    check(len(lb.game.located) == 2, "a pixel in no texture is not sent to the game")
+    check(lb.message(None, miniws.TEXT, b"hello")["presets"] is not None, "a plain text frame is still hello")
+    check(lb.pixel_of("k2", 6, 5) == ("mabc_p10_c3b70", 70, 5), "the texel of a texture as a pixel of a page (the page that has it first)")
+    check(lb.pixel_of("k2", 6, 5, "other") == ("mother_p10_c3b70", 70, 5), "...the model's own page when the pick says which model")
+    check(lb.pixel_of("k2", 40, 5) is None and lb.pixel_of("nokey", 0, 0) is None, "a texel beyond the texture, or of another texture, is none")
+    # the studio's pick, passed on once
+    lb.game.pick = {"serial": 4, "hit": True, "key": "k1", "lx": 4, "ly": 8, "model": "abc", "scroll": False}
+    check(lb.picked() is None, "the first look at the studio's pick only learns it (an old pick is not sent to a new connection)")
+    lb.game.pick = {"serial": 5, "hit": True, "key": "k1", "lx": 4, "ly": 8, "model": "abc", "scroll": True}
+    check(lb.picked() == {"select": {"material": "mabc_p10_c3b70", "x": 20, "y": 40, "scroll": True}}, "a new pick becomes the texel to select")
+    check(lb.picked() is None, "...once")
+    lb.game.pick = {"serial": 6, "hit": True, "key": "unknown", "lx": 0, "ly": 0, "scroll": False}
+    check(lb.picked() is None, "a pick of a texture no sprite has is not sent")
+    # over the socket: the extension's text frame, and the studio's pick pushed
+    lb.pick_serial = None
+    lb.game.pick = {"serial": 6}
+    server = paint_live.serve(lb, 0, log=lambda text: None)
+    sock = socket.create_connection(("127.0.0.1", server.server_address[1]))
+    sock.settimeout(10)
+    client = miniws.WebSocket(sock, client=True)
+    client.connect("127.0.0.1")
+    check(json.loads(client.recv()[1])["ok"], "the bridge greets the extension")
+    time.sleep(0.4)  # (the pick the connection began with is learnt, not sent)
+    client.send(json.dumps({"locate": {"material": "mabc_p10_c3b70", "x": 70, "y": 5}}))
+    answer = json.loads(client.recv()[1])
+    check(answer["locate"] and answer["triangles"] == 2 and lb.game.located[-1]["key"] == "k2", f"over the socket: the cursor's pixel is located ({answer})")
+    lb.game.pick = {"serial": 7, "hit": True, "key": "k2", "lx": 6, "ly": 5, "model": "abc", "scroll": True}
+    pushed = json.loads(client.recv()[1])
+    check(pushed == {"select": {"material": "mabc_p10_c3b70", "x": 70, "y": 5, "scroll": True}}, f"over the socket: the studio's pick arrives as a select ({pushed})")
+    sock.close()
+    server.shutdown()
+    # the extension's side, in Lua with Aseprite's API faked
+    manifest = json.loads((ROOT / "pc/tools/aseprite/rood-live/package.json").read_text())
+    check(tuple(int(v) for v in manifest["version"].split(".")) >= (1, 3, 0), f"the extension's version is bumped for the locator ({manifest['version']})")
+    if shutil.which("lua5.4"):
+        run = subprocess.run(["lua5.4", str(ROOT / "pc/tests/aseprite_extension_test.lua"), str(ROOT / "pc/tools/aseprite/rood-live/rood-live.lua")],
+                             capture_output=True, text=True, timeout=30)
+        for line in run.stdout.splitlines():
+            if line.startswith("FAIL"):
+                check(False, "extension (lua): " + line[6:])
+        check(run.returncode == 0 and "PASS: extension" in run.stdout, f"the extension's locator in Lua (hover sends the cursor's pixel once per change, select and scroll): {run.stdout.count('ok:   ')} checks {run.stderr[-200:]}")
+    else:
+        print("skip: lua5.4 is not installed (the extension's Lua checks)")
+
     # ---------------------------------------------------------------- real Aseprite (batch, no window; skipped when it is not installed)
     os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")
     if shutil.which("aseprite"):

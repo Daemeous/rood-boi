@@ -49,6 +49,7 @@
 #include "backends/imgui_impl_sdl3.h"
 #include "ImGuizmo.h"
 #include "cutscene_internal.h" /* the Cutscene window, the instant replay key */
+extern "C" int pc_studio_wants_mouse(void); /* studio.cpp: a click in the studio picks a texel */
 extern "C" int pc_keyboard_replay(SDL_Keycode key); /* boot_controller.c */
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: drawn by vk_overlay.cpp */
@@ -595,7 +596,7 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
              * click that closed the shell must not leave its button held
              * there. */
             if (!cutscene::free_camera_on() && !pc_ui_shell_drawn() && !pc_ui_map_visible()
-                && !pc_ui_loot_visible() && !pc_ui_data_visible()) {
+                && !pc_ui_loot_visible() && !pc_ui_data_visible() && !pc_studio_wants_mouse()) {
                 if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
                     ImGui_ImplSDL3_ProcessEvent(&scaled);
                 return 0;
@@ -1009,6 +1010,7 @@ void pc_lighting_file_menu(void);
 extern bool pc_room_browser_open;
 extern "C" bool pc_studio_open; /* studio.cpp */
 extern "C" void pc_studio_window(void);
+extern "C" void pc_studio_overlay(void); /* studio.cpp: the texel locator over the picture (editor shown or not) */
 #include "material_editor.h" /* the Material review window, the Materials panel and the preview */
 extern "C" void pc_lights_viewport(void);
 extern "C" {
@@ -2604,6 +2606,7 @@ extern "C" void pc_overlay_frame(int width, int height)
     } else {
         rood_shell::closed(); /* the picture fills the window (pc_gl_inset zero) */
     }
+    pc_studio_overlay();
     if (pc_photo_format_draw)
         pc_photo_format_draw(); /* the photo format's bars (the background: under everything else) */
     if (!visible && !hide_hud)

@@ -78,6 +78,16 @@ int render_mesh_polygons(render_mesh mesh); /* -1 when the handle is stale */
  * (bits[i] for polygon i; NULL: none). Kept across render_mesh_update. */
 int render_mesh_emissive_scope(render_mesh mesh, const uint16_t* bits);
 int render_mesh_dump(render_mesh mesh, const char* path);
+/* One triangle of a drawn model, posed (render_mesh_posed): world positions, the texture coordinates of its corners, the page and CLUT it
+ * samples, and the polygon it came from (a quad: its two triangles, quad 1 and 2; 0 for a triangle). */
+typedef struct {
+    float position[3][3];
+    uint8_t uv[3][2];
+    uint16_t tpage, clut;
+    int polygon;
+    uint8_t quad;
+} render_posed_triangle;
+int render_mesh_posed(render_mesh mesh, render_posed_triangle* out, int max);
 int render_mesh_variants(render_mesh mesh, const uint16_t* ids);
 int render_mesh_polygon_texture(render_mesh mesh, int index, unsigned* tpage, unsigned* clut, unsigned char box[4]);
 
