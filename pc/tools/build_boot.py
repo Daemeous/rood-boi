@@ -1360,13 +1360,15 @@ if ZIG:
             {name: [path, deps] for name, (path, deps) in generated.get(owned_overlay, {}).items()}, indent=1))
     for owned_overlay in sorted({s.overlay for s in active.subsystems}):
         extra = generated.get(owned_overlay, {})
+        win_extra = win_generated.get(owned_overlay, {})
         modules = {
-            "root": (f"game/{owned_overlay}/root.zig", ["common", "ownership", *sorted(extra)]),
+            # (--coff, a Windows host: the c_ modules exist only for the COFF twin, but root must still depend on them,
+            # or zig refuses them as "declared but not used")
+            "root": (f"game/{owned_overlay}/root.zig", ["common", "ownership", *sorted(set(extra) | set(win_extra))]),
             "common": ("game/common/common.zig", []),
             "ownership": (str(ownership_module), []),
             **extra,
         }
-        win_extra = win_generated.get(owned_overlay, {})
         win_modules = dict(modules, **win_extra)
         if engine_library:
             wrapper = out / (owned_overlay + "_host.zig")
