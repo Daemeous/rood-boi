@@ -990,13 +990,12 @@ extern void pc_overlay_frame(int, int);
 extern int pc_editor_separate(void) __attribute__((weak));
 extern void pc_editor_render(int, int) __attribute__((weak));
 extern int pc_hw_active, pc_hw_scale;
-extern void pc_hw_init(const uint16_t* vram);
+extern void pc_hw_init(void);
 extern GLuint pc_hw_target(void);
 extern void pc_hw_present_done(void);
 extern void pc_hw_supersample(int view_h, int display_h);
 extern void pc_hw_set_display(int x, int y, int w, int h);
 extern void pc_hw_present_origin(int* x, int* y);
-extern const uint16_t* pc_native_vram(void);
 
 extern SDL_Window* pc_window_create(SDL_PropertiesID props);
 extern void pc_window_place(SDL_PropertiesID props, int width, int height); /* boot_window.c */
@@ -1189,7 +1188,7 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     snprintf(renderer_name, sizeof renderer_name, "%s", (const char*)gl_GetString(GL_RENDERER));
     fprintf(stderr, "[gl] %s, OpenGL %s%s\n", gl_GetString(GL_RENDERER), gl_GetString(GL_VERSION),
         pc_gl_compute ? " (compute)" : "");
-    pc_hw_init(pc_native_vram());
+    pc_hw_init();
     pc_overlay_init(win, context);
     /* Perspective-correct textures are the default (ROOD_PERSPECTIVE=0
      * restores the PS1's affine mapping); 16:9 is opt-in (ROOD_WIDESCREEN=1).

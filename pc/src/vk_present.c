@@ -35,13 +35,12 @@ void pc_baked_shadow_params(float out[5]); /* lights.cpp */
 extern void pc_scene_bounds(float lo[3], float hi[3]);
 extern char pc_present_capture[400];
 extern int pc_present_burst;
-extern void pc_hw_init(const uint16_t* vram);
+extern void pc_hw_init(void);
 extern unsigned pc_hw_target(void);
 extern void pc_hw_present_done(void);
 extern void pc_hw_set_display(int x, int y, int w, int h);
 extern void pc_hw_supersample(int view_h, int display_h);
 extern void pc_hw_present_origin(int* x, int* y);
-extern const uint16_t* pc_native_vram(void);
 extern void pc_overlay_init(SDL_Window*, void*);
 extern void pc_settings_env_override(const char* key) __attribute__((weak)); /* project_settings.cpp */
 extern void pc_overlay_frame(int, int);
@@ -408,7 +407,7 @@ SDL_Window* pc_vk_create_window(const char* title, int width, int height)
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
         return abandon(win);
     pc_vk_active = 1;
-    pc_hw_init(pc_native_vram());
+    pc_hw_init();
     pc_overlay_init(win, NULL);
     /* As gl_present.c: the variables apply only when set (the settings keep theirs). */
     const char* widescreen = getenv("ROOD_WIDESCREEN");

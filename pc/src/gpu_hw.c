@@ -775,7 +775,6 @@ static void rvram_put(int x, int y, int w, int h, const uint16_t* pixels)
             rvram[i] = pixels ? pixels[(size_t)row * w + col] : native_vram[i];
         }
 }
-static void rvram_apply(int x, int y, int w, int h) { rvram_put(x, y, w, h, NULL); }
 /* The stream's copy event applied to the renderer's own VRAM (T5-3): the game's loop on the renderer's array, 16 pixels read before
  * they are written, rows top to bottom, wrapping at the edges, the destination's mask bit kept when mask_check and set when mask_set.
  * It carries no pixels: the copy's source is in the renderer's VRAM as the stream and the raster posts made it. */
@@ -3806,6 +3805,7 @@ void pc_hw_resync(const uint16_t* vram, const uint8_t* picture)
                     pc_stale_mark(&cstale, (int[4]) { c * 64, b * 16, 64, 16 }, PC_STALE_MISSING);
     }
 }
+static void resync_from_game(void) { pc_hw_resync(native_vram, 0); }
 /* Every drawing the renderer has been given is done (the records are applied before this runs): the batch drawn, the GPU idle.
  * The snapshot, rewind and photo fences. */
 void pc_hw_drain(void)
@@ -4714,7 +4714,7 @@ static void sync_kinds(int x, int y, int w, int h, int kinds)
         }
     } else {
         pixels_to_vram(pixels, x0, y0, x1, y1, (uint16_t*)(uintptr_t)native_vram);
-        rvram_apply(x0, y0, x1 - x0, y1 - y0);
+        rvram_put(x0, y0, x1 - x0, y1 - y0, NULL); /* (from the game's array) */
     }
     pc_vram_taint(x0, y0, x1, y1); /* ROOD_VRAM_STREAM_CHECK: not the stream's */
     mark_dirty(x0, y0, x1 - 1, y1 - 1); /* the sampled copy follows */

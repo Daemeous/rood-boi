@@ -155,7 +155,7 @@ unsigned pc_hw_native_texture(void)
 
 /* The renderer's start (the presenter's context just made): its own state is built on its thread. */
 static void init_call(void* p) { pc_hw_init_now(p); }
-void pc_hw_init(const uint16_t* vram) { call(init_call, (void*)vram); }
+void pc_hw_init(void) { call(init_call, (void*)pc_native_vram()); } /* (the game's array, copied into the renderer's at its start) */
 
 /* The frame state the presenter reads (whether a 3D picture / the menu's model view is shown) and the detail view's supersampling: requests. */
 static void present_world_call(void* p) { ((int_args*)p)->result = pc_hw_present_world_now(); }

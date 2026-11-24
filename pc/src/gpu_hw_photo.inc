@@ -165,7 +165,7 @@ int pc_hw_photo_restore_now(void)
 #endif
     /* Guest VRAM has already rewound. Resync only the sampled texture before
      * restoring the full-resolution backing targets and recording history. */
-    pc_hw_resync(native_vram, 0);
+    resync_from_game(); /* (the sampled texture from the game's array) */
 #ifdef ROOD_VULKAN
     if (photo_picture->vulkan) {
         if (!pc_vk_on() || !pc_vk_hw_photo_restore())

@@ -30,7 +30,6 @@ extern "C" {
     X(end_ot, 'A') \
     X(begin_ot, 'A') \
     X(set_precise, 'A') \
-    X(native_vram, 'T') \
     X(renderer_vram, 'T') \
     X(init, 'T') \
     X(mark, 'V') \
