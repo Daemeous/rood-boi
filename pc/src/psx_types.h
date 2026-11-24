@@ -86,6 +86,23 @@ typedef unsigned long psx_ulong;
 #define PSX_SIZE(T, n) (n)
 #define PSX_OFFSET(T, field, n) (n)
 
+/* The decompilation's src/ (built by `make` for the PS1, not by the port) still spells its
+ * pointer fields through these; on the PS1 they were always the plain accesses. */
+#define psx_ptr(T) T*
+#define psx_get(field) (field)
+#define psx_set(field, pointer) ((field) = (pointer))
+#define psx_copy(dst, src) ((dst) = (src))
+#define psx_raw(field) ((unsigned long)(field))
+#define psx_postinc(field) ((field)++)
+#define psx_add(field, n) ((field) += (n))
+#define psx_set_raw(field, T, value) ((field) = (T)(value))
+#define psx_to_ptr(T, value) ((T)(value))
+#define psx_to_int(T, pointer) ((T)(pointer))
+#define psx_load(T, address) ((T)(*(const unsigned long*)(const void*)(address)))
+#define psx_store(address, pointer) ((void)(*(unsigned long*)(void*)(address) = (unsigned long)(pointer)))
+#define psx_slot_get(T, base, k) (((T*)(base))[k])
+#define psx_slot_set(T, base, k, value) (((T*)(base))[k] = (value))
+
 #endif
 
 #endif
