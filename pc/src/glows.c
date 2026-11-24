@@ -936,6 +936,40 @@ static int by_score_desc(const void* a, const void* b)
     float x = ((const float*)a)[0], y = ((const float*)b)[0];
     return x < y ? 1 : x > y ? -1 : 0;
 }
+/* A visit the room's scene is replaced for and then given back (the model studio's stage): the glows' tracks are game-time state
+ * (presence, age, the effects that stayed), not the scene's, so they are kept across the visit instead of rebuilt by the first
+ * frame after it (the room's sparks and glows would pop away and grow back). pc_glows_keep saves them; pc_glows_give_back asks
+ * for them at the next room capture, when its groups are those of the saved ones. */
+static struct {
+    int valid, wanted, track_count, group_count, spread_count;
+    uint32_t next_id, signatures[MAX_GROUPS], spread_sources[64];
+    unsigned vsync;
+    double clock;
+    track* tracks;
+} kept;
+
+void pc_glows_keep(void)
+{
+    free(kept.tracks);
+    memset(&kept, 0, sizeof kept);
+    kept.tracks = malloc(sizeof tracks);
+    if (!kept.tracks)
+        return;
+    memcpy(kept.tracks, tracks, sizeof tracks);
+    kept.track_count = track_count, kept.next_id = next_id, kept.group_count = group_count;
+    for (int g = 0; g < group_count; g++)
+        kept.signatures[g] = groups[g].signature;
+    kept.spread_count = spread_count;
+    memcpy(kept.spread_sources, spread_sources, sizeof spread_sources);
+    kept.vsync = last_vsync, kept.clock = last_clock;
+    kept.valid = 1;
+}
+
+void pc_glows_give_back(void)
+{
+    kept.wanted = kept.valid;
+}
+
 int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*baked_pos)[4],
     const float (*baked_col)[4], int baked_count, float emitter_pos[][4], float emitter_col[][4],
     float emitter_shape[][4], float emitter_shadow[][4], int max)
@@ -957,7 +991,21 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
             overrides[i].bound = 0;
         solo_id = 0;
         snap = 1;
-        for (int g = 0; g < group_count; g++) {
+        int same = kept.wanted && kept.group_count == group_count;
+        for (int g = 0; same && g < group_count; g++)
+            same = kept.signatures[g] == groups[g].signature;
+        if (kept.wanted && same) {
+            memcpy(tracks, kept.tracks, sizeof tracks);
+            track_count = kept.track_count, next_id = kept.next_id, spread_count = kept.spread_count;
+            memcpy(spread_sources, kept.spread_sources, sizeof spread_sources);
+            last_vsync = kept.vsync, last_clock = kept.clock;
+            snap = 0;
+        }
+        if (kept.wanted) {
+            kept.wanted = kept.valid = 0;
+            free(kept.tracks), kept.tracks = NULL;
+        }
+        for (int g = 0; !(track_count > 0 && !snap) && g < group_count; g++) {
             track* t = new_track(PC_GLOW_ORIGIN_ROOM << 28 | (groups[g].signature & 0x0fffffffu), g, groups[g].centre);
             if (t)
                 t->size = t->obs_size = groups[g].size;

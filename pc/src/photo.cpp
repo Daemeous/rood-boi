@@ -325,6 +325,17 @@ static void redraw_failed()
     }
 }
 
+static bool render_hooked; /* the parts' `render` ran for this render */
+static void run_render_hooks()
+{
+    if (render_hooked)
+        return;
+    render_hooked = true;
+    for (const photo::Part& p : photo::parts())
+        if (p.render)
+            p.render();
+}
+
 extern "C" int pc_photo_poll(void)
 {
     if (landing) { /* at M again (state_rewind.c restored it), the render's picture kept */
@@ -333,11 +344,16 @@ extern "C" int pc_photo_poll(void)
         history_replay = false;
         sound_hold(false);
         phase = HELD;
+        for (const photo::Part& p : photo::parts())
+            if (p.landed)
+                p.landed();
     }
     if (phase == RENDERING) {
         ++render_vsyncs;
         unsigned frames = pc_battle_frame_count ? pc_battle_frame_count() - render_start_frames : 0;
         /* (from L the replay is done on reaching M: the history's last frame; from M, after render_frames frames) */
+        if (history_replay && pc_vsync_count() + 1 >= held_vsync)
+            run_render_hooks(); /* the last replayed frame is drawn with what the parts build (the studio's stage) */
         bool running = history_replay ? pc_vsync_count() < held_vsync : ((int)frames < render_frames || render_vsyncs < 2);
         if (running && (int)render_vsyncs < render_max_vsyncs)
             return 1; /* this vsync runs too */
@@ -465,6 +481,9 @@ extern "C" int pc_photo_poll(void)
         return 0;
     }
     audio_pump();
+    for (const photo::Part& p : photo::parts())
+        if (p.idle && !redraw_wanted)
+            p.idle();
     if (!redraw_wanted)
         return 0;
     redraw_wanted = false;
@@ -512,9 +531,10 @@ extern "C" int pc_photo_poll(void)
     render_start_frames = pc_battle_frame_count ? pc_battle_frame_count() : 0;
     render_start = now_seconds();
     last_error.clear();
+    render_hooked = false;
     if (history_ok && pc_snapshot_slot_valid(LEAD_SLOT)) {
         /* From L, the frames the game ran live replayed with the inputs it read (does not return when it rewinds:
-         * the next poll is at L, this render's first vsync). */
+         * the next poll is at L, this render's first vsync; the parts' `render` runs at the last frame before M). */
         char error[160] = "";
         history_replay = true;
         pc_snapshot_rewind_slot(LEAD_SLOT, error, (int)sizeof error);
@@ -522,6 +542,7 @@ extern "C" int pc_photo_poll(void)
         fprintf(stderr, "[photo] cannot replay from the lead (%s): rendered from the held moment\n", error);
         lead_drop();
     }
+    run_render_hooks(); /* from M: before the render's first frame */
     return 1;
 }
 

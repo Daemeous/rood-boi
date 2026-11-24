@@ -23,6 +23,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
 from rood_rpc import OUT  # noqa: E402
+
+# The 16:9 case is a session of its own: the game lays its 2D out for the view it booted in (ROOD_WIDESCREEN), which a save state of a 4:3
+# boot carries along; resumed in 16:9 the menu spreads over the whole view (as menu_open_scale_smoke and camera_stick_close_smoke: boot).
+os.environ["ROOD_TEST_SNAPSHOTS"] = "0"
 from checkpoints import launch_at  # noqa: E402
 
 ROW = (570, 612)  # the label's rows (of 720)

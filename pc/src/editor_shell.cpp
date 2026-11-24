@@ -79,7 +79,7 @@ void ini_write_all(ImGuiContext*, ImGuiSettingsHandler* handler, ImGuiTextBuffer
 
 /* The tool windows the default layout tabs into its bottom node (closed ones keep the node alive in
  * the ini through their settings' DockId). Plugin windows join through dock_tool_window. */
-const char* const TOOL_WINDOWS[] = { "Cutscene", "Room Browser", "Material review", "Memory cards",
+const char* const TOOL_WINDOWS[] = { "Cutscene", "Studio", "Room Browser", "Material review", "Memory cards",
     "Keyboard shortcuts", "Light all fixtures in room", "Lua console" };
 
 void build_layout(ImVec2 size)

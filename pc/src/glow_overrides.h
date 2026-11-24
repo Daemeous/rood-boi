@@ -179,6 +179,8 @@ extern float pc_glow_shadow_clear;
 extern float pc_glow_column_baked;
 /* RPC: the last update's fragments, as JSON (debugging). */
 int pc_glows_fragments_json(char* out, int size);
+void pc_glows_keep(void); /* the glow tracks, kept across a visit that replaces the room scene (the model studio) */
+void pc_glows_give_back(void); /* ... and put back at the next room capture */
 
 #ifdef __cplusplus
 }

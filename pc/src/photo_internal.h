@@ -15,6 +15,9 @@ struct Part {
     void (*reset)();                               /* back to rest (an engine reload; after the releases) */
     void (*json)(std::string& out);                /* RPC photo: ,"key":value fields */
     void (*params)(const char* json);              /* RPC photo: its tunables */
+    void (*render)();                              /* a render begins: the game is at M, about to run from it (may be null) */
+    void (*idle)();                                /* held, nothing rendering: every poll (may ask for a render; may be null) */
+    void (*landed)();                              /* a render ended: the game is at M again, held, picture kept (may be null) */
 };
 std::vector<Part>& parts();
 struct Register {

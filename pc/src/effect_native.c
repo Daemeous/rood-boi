@@ -367,6 +367,9 @@ static void place_now(const void* node, int age, const float world[3])
             return;
         }
 }
+/* studio.cpp (studio.h): the model studio shows no effect particles. */
+extern int pc_studio_hide_bodies __attribute__((weak));
+static int studio_hides_effects(void) { return &pc_studio_hide_bodies && (pc_studio_hide_bodies & 0x10000); }
 extern int vs_battle_ft4Item(unsigned* ot, int raw, int semi, int tpage, int clut, int rgb, const int* xy, const int* uv);
 extern void vs_battle_itemBracket(int item);
 extern unsigned* vs_battle_itemCursor(void);
@@ -417,6 +420,8 @@ static deferred_tile deferred[MAX_SPRITES]; /* (the tiles as the items would hav
  * the caller makes no draw items for them. `layered`: one of the fixed layers, which stays drawn as the items. */
 int pc_particles_native_takes(int tiles, int bucket, int layered, int sz)
 {
+    if (studio_hides_effects())
+        return 1; /* taken, and drawn by nothing */
     int native = collecting && !layered && bucket >= 0 && bucket < 0x800 && sz > 0 && tiles > 0 && tiles <= MAX_NODE_TILES
               && node_count < MAX_NODES && sprite_count + tiles <= MAX_SPRITES;
     if (native && camera_serial != render_frame_serial()) {
@@ -432,6 +437,8 @@ int pc_particles_native_takes(int tiles, int bucket, int layered, int sz)
 void pc_particles_native_node(int tiles, const int* page_clut, const int* rgb, const int* xy, const int* uv, const int view[3],
     int sz, unsigned xy_centre, int bucket, const void* node, int age, unsigned source)
 {
+    if (studio_hides_effects())
+        return;
     unsigned centre_xy = xy_centre;
     double centre[3] = { view[0] + 0.5, view[1] + 0.5, view[2] + 0.5 };
     float world[3];

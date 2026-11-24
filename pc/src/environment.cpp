@@ -91,6 +91,11 @@ struct Sky {
 };
 Sun sun;
 Sky sky;
+/* The model studio's look (studio.h; pc_env_studio): while on, the renderers read these in place of the room's, which stay
+ * as they are. */
+bool studio_on;
+Sun studio_sun;
+Sky studio_sky;
 bool gizmo = true; /* the sun's icon in the editor's view (its handles: editor_light_handles.cpp) */
 
 std::string num(double v, int d) { return lighting::format_number(v, d); }
@@ -267,7 +272,7 @@ const char* game_sky_kind(int kind)
  * The ground is always the room's own: light from below the horizon is the terrain's, and the
  * game's lower rings are only what it draws past the set (the forest's flat grey lit shadowed
  * air from below and washed out its shafts). */
-bool sky_colours(float zenith[3], float horizon[3], float ground[3], GameSky* game = nullptr)
+bool sky_colours(const Sky& sky, float zenith[3], float horizon[3], float ground[3], GameSky* game = nullptr)
 {
     GameSky g;
     if (!sky.manual)
@@ -280,6 +285,10 @@ bool sky_colours(float zenith[3], float horizon[3], float ground[3], GameSky* ga
         ground[k] = sky.ground[k];
     }
     return g.kind != 0;
+}
+bool sky_colours(float zenith[3], float horizon[3], float ground[3], GameSky* game = nullptr)
+{
+    return sky_colours(sky, zenith, horizon, ground, game);
 }
 } // namespace
 
@@ -431,6 +440,8 @@ extern "C" int pc_env_gpu_get(pc_env_gpu* out)
     rood_lights::track_room(); /* the current room's items */
     if (!pc_env_global || !pc_lights_enabled)
         return 0;
+    const Sun& sun = studio_on ? studio_sun : ::sun;
+    const Sky& sky = studio_on ? studio_sky : ::sky;
     int on = 0;
     float d[3];
     direction(sun.azimuth, sun.elevation, d);
@@ -449,7 +460,7 @@ extern "C" int pc_env_gpu_get(pc_env_gpu* out)
         /* The game's sky where the room has one (source=game), else the manual colours: a
          * room without game sky data gives exactly the record it gave before. */
         float zenith[3], horizon[3], ground[3];
-        sky_colours(zenith, horizon, ground);
+        sky_colours(sky, zenith, horizon, ground);
         for (int k = 0; k < 3; k++) {
             out->zenith[k] = fmaxf(zenith[k], 0.0f) * sky.intensity;
             out->horizon[k] = fmaxf(horizon[k], 0.0f) * sky.intensity;
@@ -767,6 +778,48 @@ void read_bool(const prefab::Json& o, const char* key, bool* out)
  * and the zenith/horizon/ground they give, 0..1; sky.using: "game" when the
  * record takes them) and the renderers' packed record. Save with
  * lighting {action: "save"}. */
+/* The model studio's sun and sky (studio.h), the RPC `environment`'s sun and sky members ({"sun": {...}, "sky": {...}}), on
+ * top of the defaults of a room with none: JSON text, or NULL / "" to give the room's own back. */
+extern "C" int pc_env_studio(const char* json)
+{
+    if (!json || !*json) {
+        studio_on = false;
+        pc_lights_mark_dirty();
+        return 0;
+    }
+    prefab::Json params;
+    if (!prefab::json_parse(json, params, nullptr) || params.type != prefab::Json::Object)
+        return -1;
+    Sun s;
+    Sky k;
+    s.defined = k.defined = true;
+    k.manual = true;
+    if (const prefab::Json* j = params.get("sun")) {
+        read_bool(*j, "enabled", &s.enabled);
+        read_num(*j, "azimuth", &s.azimuth);
+        read_num(*j, "elevation", &s.elevation);
+        read_vec(j->get("color"), s.color, 3);
+        read_num(*j, "intensity", &s.intensity);
+        read_num(*j, "angle", &s.angle);
+        read_bool(*j, "shadows", &s.shadows);
+    } else
+        s.enabled = false;
+    if (const prefab::Json* j = params.get("sky")) {
+        read_bool(*j, "enabled", &k.enabled);
+        read_vec(j->get("zenith"), k.zenith, 3);
+        read_vec(j->get("horizon"), k.horizon, 3);
+        read_vec(j->get("ground"), k.ground, 3);
+        read_num(*j, "intensity", &k.intensity);
+        read_num(*j, "sun_tint", &k.sun_tint);
+        read_num(*j, "ambient", &k.ambient);
+    } else
+        k.enabled = false;
+    studio_sun = s, studio_sky = k;
+    studio_on = true;
+    pc_lights_mark_dirty();
+    return 0;
+}
+
 extern "C" int pc_environment_rpc(const char* params_text, char* out, int size)
 {
     prefab::Json params;

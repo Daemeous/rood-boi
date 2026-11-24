@@ -1007,6 +1007,8 @@ void pc_lighting_file_menu(void);
 }
 #include "room_warp.h"
 extern bool pc_room_browser_open;
+extern "C" bool pc_studio_open; /* studio.cpp */
+extern "C" void pc_studio_window(void);
 #include "material_editor.h" /* the Material review window, the Materials panel and the preview */
 extern "C" void pc_lights_viewport(void);
 extern "C" {
@@ -1644,6 +1646,7 @@ static void menu_bar(float* height)
             ImGui::MenuItem("Materials", nullptr, &pc_material_instances_open);
         ImGui::MenuItem("Material preview", nullptr, &pc_material_preview_open);
         ImGui::MenuItem("Cutscene", cutscene::replay_key_name().c_str(), &cutscene::window_open);
+        ImGui::MenuItem("Studio", nullptr, &pc_studio_open);
         pc_lua_console_menu_item();
         pc_lua_dev_menu_items(); /* plugins' tool windows (rood.dev.window) */
         ImGui::MenuItem("Keyboard shortcuts", nullptr, &show_help);
@@ -2590,6 +2593,7 @@ extern "C" void pc_overlay_frame(int width, int height)
             pc_material_instances_window(); /* material_instances.cpp: masters and instances */
         pc_material_preview_window(); /* material_preview.cpp: the shaded sphere */
         pc_cutscene_window();
+        pc_studio_window(); /* studio.cpp: the model studio */
         help_window();
         memory_cards_window();
         pc_lua_console_window();
@@ -2720,6 +2724,11 @@ static void register_commands()
         if (pc_room_browser_open)
             rood_shell::focus_window("Room Browser");
     }, nullptr, bflag(&pc_room_browser_open));
+    add("window.studio", "Studio", "Window", "", [] {
+        pc_studio_open = !pc_studio_open;
+        if (pc_studio_open)
+            rood_shell::focus_window("Studio");
+    }, nullptr, bflag(&pc_studio_open));
     add("window.material_review", "Material review", "Window", "", [] {
         pc_material_review_open = !pc_material_review_open;
         if (pc_material_review_open)

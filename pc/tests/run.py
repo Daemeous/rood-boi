@@ -684,6 +684,15 @@ def suites(args, mode="egl"):
                            "hide list; the picture not black where the mesh projects) and the sky (Rue Vermillion, "
                            "looking up); the game's camera and culling exactly as before afterwards")]
           if args.save.exists() else []),
+        *([Suite("studio_smoke", [PY, str(TESTS / "studio_smoke.py"), "--card", str(args.save)], 600,
+                 note="the model studio (photo mode holds the game, every picture a render): the catalog (every "
+                      "character, Bestiary enemy and weapon of the disc), the stage's backdrop in the flat look exactly "
+                      "the Look's grey and a lit gradient in the neutral look, an enemy, a character and a weapon "
+                      "summoned in both looks (on the stage, centred), orbit and zoom, leaving gives the game back "
+                      "(state digest, picture, settings, environment) and a second visit draws the same",
+                 sources=[TESTS / "studio_smoke.py", ROOT / "pc/src/studio.cpp", ROOT / "pc/src/studio.c",
+                          ROOT / "pc/tools/studio_scan.py", ROOT / "pc/assets/studio/studio.json"])]
+          if args.save.exists() else []),
         Suite("cutscene_sequencer_smoke", [PY, str(TESTS / "cutscene_sequencer_smoke.py")], 600,
               note="sampled event tracks, exact key seek, scene lighting timing and save/reload; "
                    "synthetic SDL camera input with F1 closed/open (private Xvfb for keyboard focus)"),
@@ -1063,7 +1072,7 @@ CHECKPOINT_SUITES = {
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "data_menu_gutter_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "engine_reload_render_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke", "classic_panels_smoke",
-    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pose_smoke", "photo_firstmove_smoke", "photo_savepoint_smoke", "photo_pace_smoke", "photo_full_room_smoke",
+    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pose_smoke", "photo_firstmove_smoke", "photo_savepoint_smoke", "photo_pace_smoke", "photo_full_room_smoke", "studio_smoke",
     "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",
     "text_fade_smoke", "menu_fade_smoke", "ui_text_msdf_smoke",
 }
@@ -1076,7 +1085,7 @@ CHECKPOINT_SUITES = {
 # summed time / --heavy-jobs is a floor for the run's wall time).
 HEAVY_SUITES = {
     "glow_stability_smoke", "save_point_glow_smoke", "probe_gi_smoke", "gi_smoke", "gi_repeat_smoke", "gi_lag_smoke", "nrd_smoke",
-    "rt_camera_smoke", "sky_smoke", "game_sky_smoke", "lighting_presets_smoke", "emissive_smoke", "ui_ashley_stability_smoke",
+    "rt_camera_smoke", "studio_smoke", "sky_smoke", "game_sky_smoke", "lighting_presets_smoke", "emissive_smoke", "ui_ashley_stability_smoke",
 }
 
 

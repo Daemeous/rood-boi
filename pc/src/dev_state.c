@@ -96,6 +96,17 @@ int pc_dev_actor_of(const void* p)
     }
     return -1;
 }
+/* The actor slot whose own record holds p (its model, not a weapon or shield it holds); -1 none. */
+int pc_dev_actor_body_of(const void* p)
+{
+    for (int i = 0; i < 17; i++) {
+        D_800F4538_t* actor = vs_actors_actorRecords[i];
+        if (pc_game_pointer_ok(actor, sizeof *actor) && (const char*)p >= (const char*)actor
+            && (const char*)p < (const char*)actor + sizeof *actor)
+            return i;
+    }
+    return -1;
+}
 /* scene_submit.inc (in BATTLE's 146C.c, which knows the action record). */
 extern int pc_battle_action(int* actor, int* action, int* phase, int* chain, int* type, int* plain, int aim[3],
     int* target);

@@ -1,6 +1,6 @@
 # Model studio and more paint channels (Gitea #20) - design
 
-Status: DESIGN ONLY (worker research, 2026-11-22, read from branches gitea20-aseprite 8bc43abb2 and gitea20-paint-neutral c8bfcadd1; no product code written, nothing run).
+Status: DESIGN; P2 (the stage, summon, orbit and zoom, `neutral` and `flat`, the catalog) is built on branch studio-p2, see `pc/docs/Model_Studio.md`. Design written (worker research, 2026-11-22, read from branches gitea20-aseprite 8bc43abb2 and gitea20-paint-neutral c8bfcadd1; no product code written, nothing run).
 Lines marked **(assumption)** are mine and unverified. Names of functions and files are real as read.
 
 ## 1. Intent

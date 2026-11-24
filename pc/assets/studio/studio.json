@@ -1,0 +1,67 @@
+{
+  "about": "The model studio (pc/src/studio.cpp): the stage, the camera and the looks. Every number here is data; RPC studio {action: look, set: path, value} changes one, {save: true} keeps the whole file as the user's overlay (pc/user/studio/studio.json, ROOD_STUDIO), which is merged over this one.",
+  "stage": {
+    "radius": 900,
+    "fillet": 450,
+    "height": 1600,
+    "grey": 95,
+    "facet": 400,
+    "floor_step": 450,
+    "wall_step": 800,
+    "reach": 1.15,
+    "max_scale": 12,
+    "actor_light": 8421504
+  },
+  "camera": {
+    "about_yaw": "degrees from the model's front (0: face on, 180: from behind), added to its facing; weapons use weapon_yaw: the flat of the blade to the camera",
+    "yaw": 20,
+    "weapon_yaw": 90,
+    "elevation": 12,
+    "fov": 40,
+    "fit": 1.25,
+    "min_distance": 40,
+    "guess_height": 220,
+    "guess_distance": 600
+  },
+  "model": {
+    "facing": 0,
+    "animation": 1,
+    "equipment": 1,
+    "loader_id": 200,
+    "material": 0,
+    "weapon_material": 0,
+    "rig": 0
+  },
+  "turntable": {
+    "about": "Automatic rotation, either or both. model: the model itself turns (the light moves across its surface); light: the key light's yaw goes round the model. Degrees a second, negative the other way. paused holds the angles; fixed_dt (seconds, 0: real time) gives each render a fixed step, for tests.",
+    "model": false,
+    "light": false,
+    "paused": false,
+    "model_speed": 30,
+    "light_speed": 30,
+    "fixed_dt": 0,
+    "interval": 0.02
+  },
+  "backdrop": {
+    "about": "stage: the stage; solid: no stage (no floor, wall or drop shadow), the model on one colour (r, g, b 0..255) drawn as the game's own background, not lit.",
+    "mode": "stage",
+    "color": [119, 119, 119],
+    "presets": { "black": [0, 0, 0], "grey": [119, 119, 119], "white": [255, 255, 255] }
+  },
+  "looks": {
+    "neutral": {
+      "about": "A key light and a flat sky: the model read in clean light. The room's own lights, glows, haze and fog are off.",
+      "sun": { "enabled": true, "azimuth": 45, "elevation": 40, "intensity": 1.2, "color": [1, 0.98, 0.95], "angle": 4, "shadows": true },
+      "sky": { "enabled": true, "zenith": [0.62, 0.64, 0.68], "horizon": [0.66, 0.66, 0.68], "ground": [0.3, 0.3, 0.3], "intensity": 1, "ambient": 0.5 },
+      "room": { "light_intensity": 0, "glow_light": 0, "haze_density": 0, "contact_radius": 0, "gi_strength": 0.5, "glow_fixtures_enabled": 0, "glow_magic_enabled": 0, "glow_effects_enabled": 0 },
+      "fog": false
+    },
+    "flat": {
+      "about": "Ambient light only, from every side alike: the model's colour with no shading to read it by.",
+      "sun": { "enabled": false },
+      "sky": { "enabled": true, "zenith": [0.8, 0.8, 0.8], "horizon": [0.8, 0.8, 0.8], "ground": [0.8, 0.8, 0.8], "intensity": 1, "ambient": 1 },
+      "room": { "light_intensity": 0, "glow_light": 0, "haze_density": 0, "contact_radius": 0, "gi_strength": 0, "glow_fixtures_enabled": 0, "glow_magic_enabled": 0, "glow_effects_enabled": 0 },
+      "fog": false
+    }
+  }
+}

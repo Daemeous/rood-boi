@@ -55,6 +55,9 @@ extern int pc_live_camera_active(void) __attribute__((weak));
 /* photo.h (rood.ui.hide{actors}): bit 1 Ashley, bit 2 the other characters not drawn; dev_state.c. */
 extern int pc_photo_hide_actors __attribute__((weak));
 extern int pc_dev_actor_of(const void* p) __attribute__((weak));
+/* studio.cpp (the model studio, studio.h): the actor slots whose body is not drawn (a weapon shown alone: its holder). */
+extern int pc_studio_hide_bodies __attribute__((weak));
+extern int pc_dev_actor_body_of(const void* p) __attribute__((weak));
 /* editor_inspect.cpp: which actor slot a model mesh was drawn for (-1: none known). */
 extern void pc_inspect_model_actor(uint32_t mesh, int slot) __attribute__((weak));
 
@@ -623,6 +626,51 @@ static int facing_away(const sort_info* s, const unsigned* xy)
     long long x2 = (short)xy[s->vertex[2]], y2 = (short)(xy[s->vertex[2]] >> 16);
     return (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0) <= 0;
 }
+/* The model studio's framing (studio.h): the world-space box of every model drawn while it is on (the studio hides the
+ * rest), from the vertices and the palette this draw uses. */
+static struct {
+    int on, count;
+    float lo[3], hi[3];
+} studio_bounds;
+void pc_studio_bounds_reset(void)
+{
+    studio_bounds.on = 1;
+    studio_bounds.count = 0;
+}
+void pc_studio_bounds_stop(void) { studio_bounds.on = 0; }
+int pc_studio_bounds_get(float lo[3], float hi[3])
+{
+    if (!studio_bounds.count)
+        return 0;
+    memcpy(lo, studio_bounds.lo, sizeof studio_bounds.lo);
+    memcpy(hi, studio_bounds.hi, sizeof studio_bounds.hi);
+    return studio_bounds.count;
+}
+static void studio_bounds_add(const void* object, const void* model, const render_transform* palette, int bones)
+{
+    const unsigned char* obj = object;
+    unsigned group_count = obj[1];
+    const unsigned* groups = (const unsigned*)((const char*)model + *(const unsigned*)((const char*)model + 0x34));
+    const short* vertices = (const short*)((const char*)model + *(const unsigned*)((const char*)model + 0x38));
+    unsigned cursor = 0;
+    for (unsigned g = 0; g < group_count; g++) {
+        unsigned end = groups[g] >> 16, bone = groups[g] & 0xffff;
+        if (end < cursor || end > 768 || (int)bone >= bones)
+            return;
+        const render_transform* t = &palette[bone];
+        for (; cursor < end; cursor++) {
+            const short* v = vertices + cursor * 4;
+            for (int a = 0; a < 3; a++) {
+                float w = t->translation[a] + t->rotation[a][0] * v[0] + t->rotation[a][1] * v[1] + t->rotation[a][2] * v[2];
+                if (!studio_bounds.count || w < studio_bounds.lo[a])
+                    studio_bounds.lo[a] = w;
+                if (!studio_bounds.count || w > studio_bounds.hi[a])
+                    studio_bounds.hi[a] = w;
+            }
+            studio_bounds.count++;
+        }
+    }
+}
 /* Returns the list the model went into (0: it stays packets). */
 static uint32_t submit(int kind, const void* object, const void* model, unsigned color, unsigned texture,
     const unsigned* xy, const unsigned* depths, const unsigned* ot)
@@ -677,6 +725,8 @@ static uint32_t submit(int kind, const void* object, const void* model, unsigned
     render_transform palette[RENDER_MAX_BONES];
     for (int b = 0; b < c->bones; b++)
         world_transform(&draw_matrices[b], &palette[b]);
+    if (studio_bounds.on)
+        studio_bounds_add(object, model, palette, c->bones);
     /* The previous frame's palette of the same draw (the n-th draw of this
      * model with these matrices in the frame). */
     palette_record* rec = NULL;
@@ -799,6 +849,11 @@ int pc_object_native_take(int kind, const void* projected, const void* object, c
         if (slot >= 0 && (pc_photo_hide_actors & (slot == 0 ? 1 : 2))) {
             return 1;
         }
+    }
+    if (&pc_studio_hide_bodies && pc_studio_hide_bodies && pc_dev_actor_body_of && pc_hw_active) {
+        int slot = pc_dev_actor_body_of(object);
+        if (slot >= 0 && (pc_studio_hide_bodies >> slot & 1))
+            return 1; /* its body (the weapon it holds is another record, drawn) */
     }
     if (pc_hw_active && object == last_object && model == last_model && last_matrices) {
         const unsigned* xy = projected;

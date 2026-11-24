@@ -4507,6 +4507,28 @@ static void handle_method(int fd, const char* request)
             return;
         }
         reply(fd, id, result);
+    } else if (!strcmp(method, "studio")) {
+        /* The model studio (studio.cpp; pc/docs/plans/2026-11-22-model-studio-and-paint-channels-design.md): enter, leave,
+         * summon {kind: character | enemy | weapon, id}, clear, camera, look, get, list, state. */
+        extern int pc_studio_rpc(const char* params, char* out, int size) __attribute__((weak));
+        if (!pc_studio_rpc) {
+            fail(fd, id, -32000, "studio needs the editor (hardware renderer)");
+            return;
+        }
+        static char args[LINE_MAX_BYTES];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        static char studio_out[65536];
+        if (pc_studio_rpc(args, studio_out, sizeof studio_out) < 0) {
+            fail(fd, id, -32000, studio_out);
+            return;
+        }
+        reply(fd, id, studio_out);
     } else if (!strcmp(method, "particles")) {
         /* The port's particle system (particles.cpp): settings, emitters, motes. */
         extern int pc_particles_rpc(const char* params, char* out, int size) __attribute__((weak));

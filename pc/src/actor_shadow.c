@@ -48,8 +48,11 @@ static short slope_angle(int a, int b, unsigned radius)
 /* photo.h (rood.ui.hide{actors}), dev_state.c: a hidden character casts no drop shadow either. */
 extern int pc_photo_hide_actors __attribute__((weak));
 extern int pc_dev_actor_of(const void* p) __attribute__((weak));
+extern int pc_studio_hide_bodies __attribute__((weak)); /* studio.cpp (studio.h) */
 void pc_actor_shadow(D_800F4538_t* actor)
 {
+    if (&pc_studio_hide_bodies && (pc_studio_hide_bodies & 0x20000))
+        return; /* the studio's stage takes no drop shadow (a decal on a floor it shares: it fights the floor's depth); its light casts the shadows */
     if (&pc_photo_hide_actors && pc_photo_hide_actors && pc_dev_actor_of) {
         int slot = pc_dev_actor_of(actor);
         if (slot >= 0 && (pc_photo_hide_actors & (slot == 0 ? 1 : 2)))
