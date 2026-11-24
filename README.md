@@ -43,6 +43,16 @@ The detailed reference for the port (renderer, editor, settings keys,
 developer RPC, test suites, architecture) is [`pc/README.md`](pc/README.md),
 with design notes in [`pc/docs/`](pc/docs).
 
+## This fork
+
+This fork's `callo` branch adds the Merlose companion mod ("Two's A Riot: Tying Up Merlose Ends")
+and its optional extras; the [player builders](https://github.com/Daemeous/rood-boi/releases/latest)
+build them from your own disc.
+
+rood-boi is noprompt's native port, built on rood-reverse by
+[ser-pounce](https://github.com/ser-pounce), who started it and did most of the work,
+and its other contributors.
+
 ## Features
 
 - **The original game code, natively.** Main executable, title, battle/field
