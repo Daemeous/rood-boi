@@ -40,10 +40,10 @@ Load a save and get into the game. The studio freezes the game where it is and g
 ### 2. Open the model studio and summon a model
 
 1. Press Escape (or F1) to open the editor.
-2. Choose Window > Studio, then click Enter the studio. The game is held and a neutral grey stage appears.
-3. In the studio's list, pick a kind (All, Characters, Enemies or Weapons) and click a model. Enemies have names; characters and weapons are listed by number.
-4. Click Frame the model if it is not centred.
-5. The studio shows the model's key in a line reading "Model key: ..." (with a Copy button). That key names what you are painting; the files you make carry it in their names.
+2. Choose Window > Studio. The window's top line says whether you are in the studio; click Enter the studio there. The game is held and a neutral grey stage appears, and the line then reads "In the studio" with a Leave button. The window has two columns: the controls on the left, the model list on the right, each scrolling on its own, so it works docked short and wide.
+3. In the list on the right, pick a kind (All, Characters, Enemies or Weapons) and click a model (clicking one also enters the studio if you have not). Enemies have names; characters and weapons are listed by number.
+4. In the controls on the left, click Frame the model if it is not centred.
+5. The controls show the model's key in a line reading "Model key: ..." (with a Copy button). That key names what you are painting; the files you make carry it in their names.
 
 The model now stands on the stage. Leave the studio open for the rest of the steps.
 
@@ -117,7 +117,7 @@ Screenshots: the pink marker on the model while the mouse is over the page in As
 
 ### 9. Judge the material
 
-Shine is hard to read against a busy stage. In the Studio window:
+Shine is hard to read against a busy stage. In the Studio window's controls (left column):
 
 - **Backdrop.** The Backdrop black, Backdrop grey and Backdrop white buttons replace the stage with one flat colour. Backdrop: stage brings it back. The model is still lit the same way.
 - **Turntable.** Under "Stage, camera and look values", the turntable group has `model` (the model turns) and `light` (the light goes round it), with speeds in degrees a second (negative turns the other way). Metal and rough surfaces change as the light moves across them, which is the quickest way to see whether your values are right. "Turntable: stop and reset" puts it back.

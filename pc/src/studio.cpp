@@ -999,6 +999,14 @@ std::string pick_json(const PickedTexel& r)
         + jnum(r.pick.world[1]) + "," + jnum(r.pick.world[2]) + "],\"screen\":[" + jnum(r.screen[0]) + "," + jnum(r.screen[1]) + "]}";
 }
 
+// What the Studio window drew last frame (rectangles in screen pixels; `visible`: inside what its parent clips to), for `state`.
+struct WindowLayout {
+    bool drawn = false;
+    float window[4] = {}, status[4] = {}, controls[4] = {}, catalog[4] = {};
+    bool leave_shown = false, leave_visible = false, window_scrolls = false;
+    float leave[4] = {};
+} wl;
+
 std::string state_json()
 {
     std::string j = "{\"entered\":";
@@ -1027,6 +1035,17 @@ std::string state_json()
     j += ",\"leaving\":";
     j += leaving ? "true" : "false";
     j += ",\"error\":" + jstr(load_error);
+    {
+        auto rect = [](const float r[4]) {
+            char b[96];
+            snprintf(b, sizeof b, "[%.0f,%.0f,%.0f,%.0f]", r[0], r[1], r[2], r[3]);
+            return std::string(b);
+        };
+        j += std::string(",\"window\":{\"drawn\":") + (wl.drawn ? "true" : "false") + ",\"rect\":" + rect(wl.window)
+            + ",\"status\":" + rect(wl.status) + ",\"controls\":" + rect(wl.controls) + ",\"catalog\":" + rect(wl.catalog)
+            + ",\"leave\":" + rect(wl.leave) + ",\"leave_shown\":" + (wl.leave_shown ? "true" : "false")
+            + ",\"leave_visible\":" + (wl.leave_visible ? "true" : "false") + ",\"scrolls\":" + (wl.window_scrolls ? "true" : "false") + "}";
+    }
     j += ",\"models\":[";
     {
         const std::vector<std::string> keys = capture_model_keys();
@@ -1128,23 +1147,52 @@ extern "C" void pc_studio_window(void)
     if (!pc_studio_open)
         return;
     rood_shell::dock_tool_window("Studio");
+    wl = WindowLayout();
     if (!ImGui::Begin("Studio", &pc_studio_open)) {
         ImGui::End();
         return;
     }
-    if (!entered) {
-        if (ImGui::Button("Enter the studio")) {
+    auto item_rect = [](float r[4]) {
+        ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+        r[0] = a.x, r[1] = a.y, r[2] = b.x - a.x, r[3] = b.y - a.y;
+    };
+    wl.drawn = true;
+    wl.window[0] = ImGui::GetWindowPos().x, wl.window[1] = ImGui::GetWindowPos().y;
+    wl.window[2] = ImGui::GetWindowSize().x, wl.window[3] = ImGui::GetWindowSize().y;
+    // The state first, always in sight: in the studio (and the way out) or not. Below it two columns, each scrolling on its own
+    // (the window is docked short and wide): the controls left, the catalog right.
+    if (entered) {
+        ImGui::TextColored(ImVec4(0.45f, 0.9f, 0.5f, 1), "In the studio");
+        ImGui::SameLine();
+        bool left = ImGui::Button("Leave");
+        item_rect(wl.leave);
+        wl.leave_shown = true, wl.leave_visible = ImGui::IsItemVisible();
+        if (left)
+            leave();
+        ImGui::SameLine();
+        ImGui::TextDisabled("the game is held; leaving gives it back exactly");
+    } else {
+        ImGui::TextDisabled("Not in the studio: the game is running");
+        ImGui::SameLine();
+        bool go = ImGui::Button("Enter the studio");
+        item_rect(wl.leave);
+        wl.leave_visible = ImGui::IsItemVisible();
+        if (go) {
             std::string why = enter();
             if (!why.empty())
                 scene_message = why;
         }
         if (!scene_message.empty())
             ImGui::TextWrapped("%s", scene_message.c_str());
-        ImGui::TextDisabled("Holds the game and shows its models on a neutral stage; leaving gives the game back exactly.");
-    } else {
-        if (ImGui::Button("Leave"))
-            leave();
         ImGui::SameLine();
+        ImGui::TextDisabled("(or pick a model)");
+    }
+    wl.status[0] = wl.window[0], wl.status[1] = ImGui::GetCursorScreenPos().y;
+    const float column = fmaxf(ImGui::GetContentRegionAvail().x * num("window.controls_share", 0.55f), 260.0f);
+    ImGui::BeginChild("##controls", ImVec2(column, 0), ImGuiChildFlags_Borders);
+    if (!entered) {
+        ImGui::TextDisabled("Holds the game and shows its models on a neutral stage.");
+    } else {
         if (ImGui::Button("Clear"))
             clear();
         ImGui::SameLine();
@@ -1207,7 +1255,7 @@ extern "C" void pc_studio_window(void)
         bool changed = false;
         if (ImGui::CollapsingHeader("Stage, camera and look values")) {
             Json& root = cfg();
-            for (const char* group : { "stage", "camera", "model", "turntable", "backdrop", "locate" })
+            for (const char* group : { "window", "stage", "camera", "model", "turntable", "backdrop", "locate" })
                 if (Json* g = root.get(group))
                     if (ImGui::TreeNode(group)) {
                         changed |= rows(*g, std::string(group) + ".", 1);
@@ -1238,8 +1286,11 @@ extern "C" void pc_studio_window(void)
         if (changed)
             request();
     }
-    ImGui::Separator();
+    ImGui::EndChild();
+    item_rect(wl.controls);
+    ImGui::SameLine();
     // the catalog
+    ImGui::BeginChild("##catalog", ImVec2(0, 0), ImGuiChildFlags_Borders);
     build_items();
     static char filter[64];
     static int kind = 0;
@@ -1251,7 +1302,7 @@ extern "C" void pc_studio_window(void)
     std::string low = filter;
     for (char& ch : low)
         ch = (char)tolower((unsigned char)ch);
-    if (ImGui::BeginChild("##models", ImVec2(0, 0), ImGuiChildFlags_Borders)) {
+    if (ImGui::BeginChild("##models", ImVec2(0, 0), ImGuiChildFlags_None)) {
         for (const Item& i : items) {
             if (kind && i.kind != kinds[kind])
                 continue;
@@ -1277,6 +1328,9 @@ extern "C" void pc_studio_window(void)
         }
     }
     ImGui::EndChild();
+    ImGui::EndChild();
+    item_rect(wl.catalog);
+    wl.window_scrolls = ImGui::GetScrollMaxY() > 0;
     ImGui::End();
 }
 

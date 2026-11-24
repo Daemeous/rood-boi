@@ -695,6 +695,14 @@ def suites(args, mode="egl"):
                  sources=[TESTS / "studio_smoke.py", ROOT / "pc/src/studio.cpp", ROOT / "pc/src/studio.c",
                           ROOT / "pc/tools/studio_scan.py", ROOT / "pc/assets/studio/studio.json"])]
           if args.save.exists() else []),
+        *([Suite("studio_window_smoke", [PY, str(TESTS / "studio_window_smoke.py"), "--card", str(args.save)], 600,
+                 note="the model studio as used in the editor: the game running live (not RPC-paused), Window > Studio docked "
+                      "short and wide; entering shows the stage and a summoned character in the Game panel (not the live "
+                      "room), Leave and the camera controls stay in view (the window does not scroll), leaving gives the "
+                      "room back",
+                 sources=[TESTS / "studio_window_smoke.py", ROOT / "pc/src/studio.cpp", ROOT / "pc/src/photo.cpp",
+                          ROOT / "pc/assets/studio/studio.json"])]
+          if args.save.exists() else []),
         *([Suite("studio_locate_smoke", [PY, str(TESTS / "studio_locate_smoke.py"), "--card", str(args.save)], 600,
                  note="the model studio's texel locator (Aseprite <-> studio): picks over a summoned character, each texel asked for lands on the model "
                       "where it was picked and a pick at the footprint gives it back (by page, label and texture key), the marker is in the picture in its "
@@ -1082,7 +1090,7 @@ CHECKPOINT_SUITES = {
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "data_menu_gutter_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "engine_reload_render_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke", "classic_panels_smoke",
-    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pose_smoke", "photo_firstmove_smoke", "photo_savepoint_smoke", "photo_pace_smoke", "photo_full_room_smoke", "studio_smoke", "studio_locate_smoke",
+    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pose_smoke", "photo_firstmove_smoke", "photo_savepoint_smoke", "photo_pace_smoke", "photo_full_room_smoke", "studio_smoke", "studio_window_smoke", "studio_locate_smoke",
     "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",
     "text_fade_smoke", "menu_fade_smoke", "ui_text_msdf_smoke",
 }

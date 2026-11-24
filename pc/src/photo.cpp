@@ -352,8 +352,7 @@ extern "C" int pc_photo_poll(void)
         ++render_vsyncs;
         unsigned frames = pc_battle_frame_count ? pc_battle_frame_count() - render_start_frames : 0;
         /* (from L the replay is done on reaching M: the history's last frame; from M, after render_frames frames) */
-        if (history_replay && pc_vsync_count() + 1 >= held_vsync)
-            run_render_hooks(); /* the last replayed frame is drawn with what the parts build (the studio's stage) */
+        run_render_hooks(); /* (a replay too: the parts' scene needs the frames the replay has, not only the last one) */
         bool running = history_replay ? pc_vsync_count() < held_vsync : ((int)frames < render_frames || render_vsyncs < 2);
         if (running && (int)render_vsyncs < render_max_vsyncs)
             return 1; /* this vsync runs too */

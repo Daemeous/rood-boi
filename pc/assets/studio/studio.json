@@ -1,5 +1,9 @@
 {
   "about": "The model studio (pc/src/studio.cpp): the stage, the camera and the looks. Every number here is data; RPC studio {action: look, set: path, value} changes one, {save: true} keeps the whole file as the user's overlay (pc/user/studio/studio.json, ROOD_STUDIO), which is merged over this one.",
+  "window": {
+    "about": "the Studio window: the controls column's share of the window's width (the catalog has the rest)",
+    "controls_share": 0.55
+  },
   "stage": {
     "radius": 900,
     "fillet": 450,
