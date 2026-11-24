@@ -3183,7 +3183,7 @@ int pc_ui_text_json(char* out, int size)
     return used;
 }
 
-/* ---- the GIM pictures' lines as real text (gim_text.cpp, gitea #14) ----
+/* ---- the GIM pictures' lines as real text (gim_text.cpp) ----
  *
  * A carrier sprite the picture's drawer made (ui_text.h) registers with the line it stands for; gpu_hw.c asks for its quad as it draws it.
  * The line is one image: the words set in the pictures style (Alegreya by default; ui_text_pictures_*) across the line's box, each texel

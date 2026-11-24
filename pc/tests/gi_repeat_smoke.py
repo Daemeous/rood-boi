@@ -1,4 +1,4 @@
-"""A paused game redrawn again and again keeps the same path-traced picture (Gitea #13).
+"""A paused game redrawn again and again keeps the same path-traced picture.
 
 A paused game redraws at 60 Hz and after every served request: as many times as the
 machine's speed allows. The GI target (raw and displayed indirect light, the NRD history

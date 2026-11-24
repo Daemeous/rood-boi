@@ -48,8 +48,7 @@ extern vk_hw_state vk_hw;
 #define VK_TEX_PALETTES_Y 2560
 #define VK_TEX_TABLE_Y 3584
 #define VK_VRAM_WIDTH 3072
-#define VK_TEX_VALID_Y 4096 /* one row: a halfword a layer, 1 where the ray readers may read the layer (gpu_hw.c pc_tex_resources_refresh) */
-#define VK_VRAM_HEIGHT 4097
+#define VK_VRAM_HEIGHT 4096
 #define VK_TARGET_FORMAT VK_FORMAT_R8G8B8A8_UNORM
 /* The material target (material_pack.glsl: packed 16-bit words). */
 #define VK_MATERIAL_FORMAT VK_FORMAT_R16G16B16A16_UNORM

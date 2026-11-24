@@ -1,4 +1,4 @@
-"""Blender side of pc/tools/room_blender.py (Gitea #20): bakes a room's textures from its geometry.
+"""Blender side of pc/tools/room_blender.py: bakes a room's textures from its geometry.
 
     blender -b -P pc/tools/blender/bake_room.py -- ROOM.gltf EXPORT.json OUTDIR SAMPLES '{"bevel_radius": ..}'
 

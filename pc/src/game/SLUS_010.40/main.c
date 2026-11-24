@@ -8117,7 +8117,7 @@ static void _displayLoadingScreen(void)
     DrawSync(0);
     VSync(2);
 #ifdef ROOD_PC
-    /* The words as real text (gitea #23, pc/src/gim_text.cpp): with the modern fonts and the player's NOWLOADING text pack the picture is not uploaded; its
+    /* The words as real text (pc/src/gim_text.cpp): with the modern fonts and the player's NOWLOADING text pack the picture is not uploaded; its
      * lines are drawn into the frame buffer shown (carrier sprites drawn at once, ui_text.c). */
     if (pc_gim_text_loading()) {
         DRAWENV draw;

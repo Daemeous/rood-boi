@@ -2,7 +2,7 @@
   "name": "rood-live",
   "displayName": "Rood live",
   "description": "Live material painting (height, metal, roughness...) for the rood-boi PC port: strokes in the channel layers and the Material (preset swatch) layer reach the running game (paint_roundtrip.py live); the texel under the cursor is marked on the model in the model studio, and a texel picked on the model there is selected.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": { "name": "rood-boi" },
   "license": "CC0-1.0",
   "categories": ["Scripts"],

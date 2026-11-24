@@ -207,7 +207,7 @@ def main():
                                     f"(difference {moved:.1f}), back at the default ({back:.1f})")
         game.run(30)
 
-        # Typography (gitea #32): with ui_text font the names and the hint are set in the labels style, the face the
+        # Typography: with ui_text font the names and the hint are set in the labels style, the face the
         # overlay's own words (ITEMS, CHAIN ...) have, whatever its settings are; ui_text original keeps the game's glyphs.
         def labels_style():
             return {st["name"]: st for st in game.call("ui_text")["styles"]}["labels"]

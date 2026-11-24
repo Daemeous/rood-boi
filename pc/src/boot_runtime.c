@@ -2098,7 +2098,7 @@ unsigned pc_battle_frame_count(void) { return battle_frames; }
 /* Developer RPC screenshot: the displayed frame as a binary PPM. */
 int pc_capture_display(const char* path, int* width, int* height)
 {
-    /* Looking at the game does not change it (Gitea #26): the display rectangle is read back from the renderer into the VRAM array
+    /* Looking at the game does not change it: the display rectangle is read back from the renderer into the VRAM array
      * for the picture below, and the array is put back as it was after (the game's VRAM is its state: a state hash or a save state
      * taken after a screenshot must equal one taken without). */
     uint16_t* kept = NULL; /* (not a static: this unit's statics are the game's state) */

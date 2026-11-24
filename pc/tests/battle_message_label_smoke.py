@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The message box's header label (CAUTION) sits at the box's left corner in widescreen (Gitea #21).
+"""The message box's header label (CAUTION) sits at the box's left corner in widescreen.
 
     python3 pc/tests/battle_message_label_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Looking at the game does not change it (Gitea #26): a screenshot reads the display back from the renderer into the game's VRAM array
+"""Looking at the game does not change it: a screenshot reads the display back from the renderer into the game's VRAM array
 for its picture, and must put the array back. The state hash (guest memory, native statics, overlays, VRAM) before a screenshot equals the
 hash after it, in the save room and in a room with a battle running, and the game run on from there equals the game run without the
 screenshot (a mark, rewind and two legs, the first looked at, the second not).

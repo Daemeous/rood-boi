@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""pc/tools/paint_roundtrip.py without the game (Gitea #20): what the seed holds, what an import writes, what it never touches.
+"""pc/tools/paint_roundtrip.py without the game: what the seed holds, what an import writes, what it never touches.
 
     python3 pc/tests/paint_roundtrip_test.py"""
 import argparse

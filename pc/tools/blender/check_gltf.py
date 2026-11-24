@@ -1,4 +1,4 @@
-"""Opens a paint package's glTF in Blender and reports what it holds (pc/tools/paint_roundtrip.py; Gitea #20).
+"""Opens a paint package's glTF in Blender and reports what it holds (pc/tools/paint_roundtrip.py).
 
     blender -b -P pc/tools/blender/check_gltf.py -- PAINT.gltf [PREVIEW.png]
 

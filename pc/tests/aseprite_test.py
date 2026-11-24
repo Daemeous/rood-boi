@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""The Aseprite round trip without Aseprite or the game (Gitea #20): pc/tools/aseprite_io.py, the .aseprite files of paint_roundtrip.py
+"""The Aseprite round trip without Aseprite or the game: pc/tools/aseprite_io.py, the .aseprite files of paint_roundtrip.py
 (export --painter aseprite, import, watch), the WebSocket (miniws.py) and the live bridge (paint_live.py) up to the RPC call.
 
     python3 pc/tests/aseprite_test.py"""
 import argparse
+import io
 import json
 import os
 import pathlib
@@ -244,6 +245,54 @@ with tempfile.TemporaryDirectory() as d:
     check(rough is not None and (rough[:, 1] == 255).all() and (rough[:, 2] == 120).all(), "watch imports a saved file's channel")
     check(took < 1.0, f"...within a second of the save ({took * 1000:.0f} ms, debounced 300 ms)")
     check(sum("aaaaaaaaaa_g100.aseprite" in line for line in lines) == 1, f"...one line per import: {[line for line in lines if 'g100' in line]}")
+
+
+    # ---------------------------------------------------------------- pack and unpack
+    import zipfile
+    src = make_package("packsrc")
+    painted = np.array(base)
+    sw = [pp for pp in mp.load() if pp["id"] == "worn_steel"][0]
+    rough_px = layout  # (the layer table of the files written above)
+    sprite = ase.read(src / "aseprite" / "aaaaaaaaaa_g100.aseprite")
+    metal_l, rough_l, mat_l = sprite.layer("Metal").pixels.copy(), sprite.layer("Roughness").pixels.copy(), sprite.layer("Material").pixels.copy()
+    metal_l[1, 2, :3] = 255
+    metal_l[4, 6, :3] = 7
+    rough_l[0, 0, :3] = 33
+    mat_l[3, 3] = (*[int(sw["colour"][i:i + 2], 16) for i in (1, 3, 5)], 255)
+    new_layers = [{"name": l.name, "pixels": {"Metal": metal_l, "Roughness": rough_l, "Material": mat_l}.get(l.name, l.pixels), "visible": l.visible,
+                   "locked": l.locked, "opacity": l.opacity} for l in sprite.layers]
+    ase.write(src / "aseprite" / "aaaaaaaaaa_g100.aseprite", sprite.width, sprite.height, new_layers, palette=sprite.palette)
+    pr.run_import(args_for(src, "packdirect"), say=lambda *_: None)
+    packfile = d / "x.roodpack.zip"
+    check(pr.pack_package(argparse.Namespace(dir=str(src), out=str(packfile)), say=lambda *_: None) == 0 and packfile.exists(), "pack writes one file")
+    with zipfile.ZipFile(packfile) as z:
+        names = z.namelist()
+        meta = json.loads(z.read("pack.json"))
+        counts = {n: int((np.asarray(Image.open(io.BytesIO(z.read(n))).convert("RGBA"))[..., 3] > 0).sum()) for n in names if n.endswith(".png")}
+    check(not any("reference" in n.lower() or "colour" in n.lower() or n.endswith("BaseColor.png") for n in names) and sorted(counts) == [
+        "aaaaaaaaaa_g100/material.png", "aaaaaaaaaa_g100/metal.png", "aaaaaaaaaa_g100/roughness.png"], f"the pack has the painted layers and no reference layer ({names})")
+    check(counts["aaaaaaaaaa_g100/metal.png"] == 2 and counts["aaaaaaaaaa_g100/roughness.png"] == 1 and counts["aaaaaaaaaa_g100/material.png"] == 1,
+          f"...and only the painted pixels, not the game's own values ({counts})")
+    check(packfile.stat().st_size < 3000, f"...so it is small ({packfile.stat().st_size} bytes)")
+    texture_bytes = base.tobytes()
+    check(all(texture_bytes not in z for z in (zipfile.ZipFile(packfile).read(n) for n in names)) and meta["target"] == "room" and meta["pages"], "the pack's own text names what it is for")
+    fresh = make_package("packdst")
+    pr.unpack_package(argparse.Namespace(pack=str(packfile), dir=str(fresh), layer=str(d / "layer-packdst"), catalog=str(d / "cat-packdst.json")), say=lambda *_: None)
+    same = all(np.array_equal(np.asarray(Image.open(d / "layer-packdirect" / n)), np.asarray(Image.open(d / "layer-packdst" / n)))
+               for n in tree(d / "layer-packdirect") if n.endswith(".png")) and tree(d / "layer-packdirect") == tree(d / "layer-packdst")
+    check(same and tree(d / "layer-packdst"), f"unpacking onto a fresh export gives the same maps as importing the painted file directly ({tree(d / 'layer-packdst')})")
+    after = ase.read(fresh / "aseprite" / "aaaaaaaaaa_g100.aseprite")
+    check(int(after.layer("Metal").pixels[1, 2, 0]) == 255 and [l.name for l in after.layers] == [l.name for l in sprite.layers], "...and the fresh file now holds the painting, its layers as they were")
+    other = make_package("packother")
+    seedpath = other / "seed.json"
+    sj = json.loads(seedpath.read_text())
+    sj["room"] = 99
+    seedpath.write_text(json.dumps(sj))
+    try:
+        pr.unpack_package(argparse.Namespace(pack=str(packfile), dir=str(other), layer=None, catalog=None), say=lambda *_: None)
+        check(False, "a pack for another room is refused")
+    except SystemExit as e:
+        check("export what the pack is for" in str(e), "a pack for something else is refused, saying what to export")
 
     # ---------------------------------------------------------------- the WebSocket
     left, right = socket.socketpair()
@@ -554,7 +603,7 @@ with tempfile.TemporaryDirectory() as d:
     check(("aaaaaaaaaa", "g100", "metal") not in ncleared and npushed[-1][2] == "metal", "(metal, which this texture's game has a map for, is pushed back as before)")
     os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")
 
-    # ---------------------------------------------------------------- the texel locator (Gitea #37): Aseprite <-> the studio, with a game that is faked
+    # ---------------------------------------------------------------- the texel locator: Aseprite <-> the studio, with a game that is faked
     class StudioGame:
         """The studio's two actions the bridge uses: locate (recorded) and picked (what the test has the studio pick)."""
         def __init__(self):
@@ -667,6 +716,44 @@ s:saveAs("{d / "saved.aseprite"}")
         check(run.stdout.split() == [str(len(pch.ROWS) + 2), str(len(presets) + 1 + mp.PALETTE_GRAYS), str(0xbb)], f"a file Aseprite wrote opens in it again after `palette`, with the new swatches: {run.stdout.split()}")
     else:
         print("skip: aseprite is not installed (the real-Aseprite checks)")
+
+
+# ---- finding the game: the socket pc/run-game.sh opens, and the model summoned in the studio ----
+saved_rpc = os.environ.pop("ROOD_RPC", None)
+try:
+    check(paint_live.default_socket() in (str(pr.ROOT / "pc/build/boot/rpc-live.sock"), paint_live.rood_rpc.DEFAULT_SOCKET), "the bridge's default socket is the played game's (rpc-live.sock) when there is one")
+    os.environ["ROOD_RPC"] = "/x/y.sock"
+    check(paint_live.default_socket() == "/x/y.sock", "$ROOD_RPC names the socket first")
+finally:
+    os.environ.pop("ROOD_RPC", None)
+    if saved_rpc is not None:
+        os.environ["ROOD_RPC"] = saved_rpc
+
+
+class FakeStudio:
+    def __init__(self, entered, model_at):
+        self.entered, self.model_at, self.picks = entered, model_at, []
+
+    def call(self, method, **p):
+        if method == "studio":
+            return {"entered": self.entered, "item": {"kind": "character", "id": 3} if self.entered else None}
+        if method == "present_dump":
+            pathlib.Path(p["path"]).write_bytes(b"P6\n960 720\n255\n")
+            return {}
+        if method == "material":
+            self.picks.append((p["x"], p["y"]))
+            hit = (p["x"], p["y"]) == self.model_at
+            return {"object": {"text": "m61c3d37af4" if hit else "g100"}}
+        raise AssertionError(method)
+
+
+fake = FakeStudio(True, (492, 360))
+check(pr.studio_model(fake) == "61c3d37af4" and fake.picks[0] == (480, 360), f"--model studio finds the summoned model by looking out from the middle of the picture ({fake.picks})")
+try:
+    pr.studio_model(FakeStudio(False, None))
+    check(False, "--model studio without a studio says so")
+except SystemExit as e:
+    check("model studio" in str(e), "--model studio without a studio says so")
 
 print(f"{'FAIL' if failures else 'PASS'}: aseprite round trip ({failures} failures)")
 sys.exit(1 if failures else 0)

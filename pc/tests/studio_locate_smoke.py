@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The model studio's texel locator (pc/src/studio.cpp, studio_locate.cpp; pc/docs/Model_Studio.md; Gitea #37):
+"""The model studio's texel locator (pc/src/studio.cpp, studio_locate.cpp; pc/docs/Model_Studio.md):
 
     python3 pc/tests/studio_locate_smoke.py [--card ...] [--out DIR]
 
@@ -136,6 +136,8 @@ def run(out, card):
                 p = studio(action="pick", x=x, y=y, tell=False)["pick"]
                 if p.get("hit") and texel_of(p) not in found:
                     found[texel_of(p)] = (x, y, p)
+        some = next(iter(found.values()))[2]
+        check(some["model"] and s["models"] == [some["model"]], f"the studio's state names the model it drew (models {s['models']}, a pick says {some['model']})")
         check(len(found) > 60, f"picks over the model find {len(found)} different texels")
         wrong, checked, multi = [], 0, None
         for texel, (x, y, p) in list(found.items())[::5]:

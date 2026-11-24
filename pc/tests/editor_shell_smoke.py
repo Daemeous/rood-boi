@@ -271,7 +271,7 @@ def check_closed(s):
 
 
 def check_stretch(s):
-    """Aspect "stretch to window" fills the window, not the Game panel: inside the panel the picture keeps 4:3 (gitea #18: stretched into a
+    """Aspect "stretch to window" fills the window, not the Game panel: inside the panel the picture keeps 4:3 (stretched into a
     narrow panel it looked like texture memory)."""
     g = s.game
     g.call("graphics", aspect=1)

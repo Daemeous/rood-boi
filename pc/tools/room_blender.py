@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One room through Blender and back (Gitea #20; pc/docs/Materials.md, "Blender round trip").
+"""One room through Blender and back (pc/docs/Materials.md, "Blender round trip").
 
     python3 pc/tools/room_blender.py export [--zone Z --room R] [--out DIR]
     python3 pc/tools/room_blender.py bake   [--out DIR] [--samples N]

@@ -5,7 +5,7 @@ closing it does not outlive the script.
     python3 pc/tests/rood_rpc_launch_test.py
 
 PR_SET_PDEATHSIG (rood_rpc._die_with_parent) follows the thread that forked the child: set for a launch from a worker thread it would signal
-the game the moment that thread ended, mid-run (the Gitea #3 shape, and snapshot_equivalence launches from a thread pool). So:
+the game the moment that thread ended, mid-run (the shape of an earlier exit bug, and snapshot_equivalence launches from a thread pool). So:
   - a game launched in a thread that then ends is still answering afterwards (and closes cleanly);
   - a script (a child process) that launches a game from its main thread and raises leaves no game running (PDEATHSIG, SIGTERM);
   - the same from a thread of that script: the game is reaped when the script ends (the atexit reaper)."""

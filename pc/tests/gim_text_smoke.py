@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The game's pictures of text drawn as real text from a pack (gitea #14): what is replaced, what is not.
+"""The game's pictures of text drawn as real text from a pack: what is replaced, what is not.
 
     python3 pc/tests/gim_text_smoke.py [--out DIR]
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The loading screen's "NOW LOADING" as real text with a glow (gitea #23).
+"""The loading screen's "NOW LOADING" as real text with a glow.
 
     python3 pc/tests/gim_text_loading_smoke.py [--out DIR] [--card pc/build/test-card1.mcd]
 

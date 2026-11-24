@@ -21,4 +21,7 @@ def build(out):
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--out", default=str(HERE.parents[1] / "build/aseprite"))
-    print(build(p.parse_args().out))
+    built = build(p.parse_args().out)
+    print(built)
+    print("Install: double-click it, or in Aseprite: Edit > Preferences > Extensions > Add Extension, then restart Aseprite. "
+          "To update, remove the older Rood live on the same page first.")

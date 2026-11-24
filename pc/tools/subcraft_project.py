@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """A SubCraft project (paint.subcraft) made from a paint_roundtrip.py package, so the painter opens with the game's texture already
-there instead of an empty stack (Gitea #20).
+there instead of an empty stack.
 
     python3 pc/tools/subcraft_project.py PACKAGE_DIR [--out FILE]
 

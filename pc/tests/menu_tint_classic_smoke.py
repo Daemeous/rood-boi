@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The menu tint on the game's own (classic) menus (pc/src/ui/ui_tint.cpp pc_ui_classic_tint, draw_items.c; gitea #17).
+"""The menu tint on the game's own (classic) menus (pc/src/ui/ui_tint.cpp pc_ui_classic_tint, draw_items.c).
 
 With ui_menus 0 the Command menu (Triangle in the field) keeps the game's blue panels under the Original tint (the default) and takes the
 chosen tint's hue under Slate and Crimson: the panels' pixels change, the HUD (the HP / MP gauges and text) and the 3D picture beside them

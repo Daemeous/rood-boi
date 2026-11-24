@@ -1,5 +1,5 @@
 {
-  "about": "Tunables of pc/tools/room_blender.py (Gitea #20): the bake (Blender, per texture, from the room's geometry) and the maps made from it. Lengths in the exported room's units: 1 = 512 game units.",
+  "about": "Tunables of pc/tools/room_blender.py: the bake (Blender, per texture, from the room's geometry) and the maps made from it. Lengths in the exported room's units: 1 = 512 game units.",
   "samples": 24,
   "bake": {
     "bevel_radius": 0.05,

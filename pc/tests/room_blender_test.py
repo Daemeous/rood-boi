@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""pc/tools/room_blender.py without the game or Blender (Gitea #20): the scene dump's polygons to textures, the room's winding, the
+"""pc/tools/room_blender.py without the game or Blender: the scene dump's polygons to textures, the room's winding, the
 glTF written, the maps made from a bake.
 
     python3 pc/tests/room_blender_test.py"""

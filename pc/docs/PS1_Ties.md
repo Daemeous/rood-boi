@@ -170,7 +170,7 @@ items (`pc/src/draw_items.c`, `pc/docs/plans/2026-11-08-frames-as-data.md`); the
 lists with reference packets. The frame's ordering tables hold no packets and no links (2026-11-17: `pc_frame_table_clear` zeroes a table,
 `pc_frame_table_draw` draws the runs placed in it, `pc_frame_table_check` is the tripwire for a packet written into one), the texture
 moves are copy items (`pc_frame_move`), the lint rule `gpu_packet_writes` is 0 and no 24-bit link word is written or read in game or
-engine code. What is left of T4 is the packets the host still lowers items to and the 3D packet builders' reference packets. No packet or ordering-table import stays pinned (2026-11-21, S9 step 4 / Gitea #2): the mover matched DRAWENV, DISPENV and P_CODE by type name as "GPU packet storage" (they are plain data:
+engine code. What is left of T4 is the packets the host still lowers items to and the 3D packet builders' reference packets. No packet or ordering-table import stays pinned (2026-11-21, S9 step 4): the mover matched DRAWENV, DISPENV and P_CODE by type name as "GPU packet storage" (they are plain data:
 PutDrawEnv and PutDispEnv read fields, a P_CODE is a colour word copied as a value), the text boxes' tables are `u_long [3 * 34]` slots, and the trigger marker's pieces are one record, the tail of
 `vs_battle_mapCompletionFlags` (an `int [47]`). What the lint's `vram_pointer` counts (`pc_native_vram()`, the renderer's own VRAM array) and its `io_register` GPU entries
 (unbuilt `libpress/LIBPRESS.c`, MDEC and DMA constants) are not RAM-block pins: T5 and the unbuilt file, not S9.

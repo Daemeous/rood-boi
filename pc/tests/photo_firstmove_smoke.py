@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The first render of the photo mode draws the held moment, not the held moment plus render_frames (Gitea #34).
+"""The first render of the photo mode draws the held moment, not the held moment plus render_frames.
 
     python3 pc/tests/photo_firstmove_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 

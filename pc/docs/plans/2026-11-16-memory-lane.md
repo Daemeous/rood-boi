@@ -167,7 +167,7 @@ one game at a time.
 | S8 | `ownership.toml` keyed by name; `imports.ld`, reference ELF address checks (T11) | build links; hotswap smokes | 3 d |
 | S9 | Delete the RAM block: `map_guest`, `ROOD_GUEST_RAM_*`, slot addresses, `rood_null_page` (guards at the NULL-TABLE sites), the low stack address | lint `ps1_address` 0; gate; full lane once | 3-4 d |
 
-S9 step 4 (the T4 GPU imports, Gitea #2) is done (2026-11-21): the 14 imports it listed were pinned by a type-name match and adjacency, not by a link (no packet is linked in guest RAM any more); they move. Not blockers, by measurement: the lint's `vram_pointer` hits (all `pc_native_vram()`, the renderer's own VRAM array, T5/T1's) and its GPU `io_register` entries (MDEC and DMA constants of `libpress/LIBPRESS.c`, which the build does not compile).
+S9 step 4 (the T4 GPU imports) is done (2026-11-21): the 14 imports it listed were pinned by a type-name match and adjacency, not by a link (no packet is linked in guest RAM any more); they move. Not blockers, by measurement: the lint's `vram_pointer` hits (all `pc_native_vram()`, the renderer's own VRAM array, T5/T1's) and its GPU `io_register` entries (MDEC and DMA constants of `libpress/LIBPRESS.c`, which the build does not compile).
 | S10 | Snapshot keys from the layout table; Oracle and `field_map.py` by symbol; the in-process rewind ranges follow the arenas | snapshot and rewind smokes, determinism_smoke, zig_hotswap | 5-6 d |
 
 S0-S3 can run in parallel with each other and with the T4 and T10 lanes; S4a-S5 need S1; S6 needs S2 and S4; S7 follows

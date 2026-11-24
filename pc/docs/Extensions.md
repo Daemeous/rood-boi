@@ -874,7 +874,7 @@ picture stays. So the game's state, its digest (RPC `snapshot hash`), its
 vsync and every `rood.game` query stay M's the whole time, and the first
 render shows what was on the screen when the hold began (a first render
 used to be the moment four frames on, so everything that moved shifted
-once: Gitea #34). Normal play pays nothing: a mark is taken when a hold is
+once). Normal play pays nothing: a mark is taken when a hold is
 asked, and the history is logged only during the lead. A hold the game cannot
 lead (asked while the RPC holds the game at a vsync, or the mark fails) is
 held at once and rendered as before: from M for `render_frames` frames, then

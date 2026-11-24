@@ -524,6 +524,19 @@ Capture capture;
 Located located;
 PickedTexel picked;
 
+// The content keys of the models the picture drew, as hex text ("61c3d37af4"): what a painter's export is named after.
+std::vector<std::string> capture_model_keys()
+{
+    std::vector<std::string> out;
+    for (int m = 0; m < capture.meshes && m < 16; m++) {
+        char text[16];
+        snprintf(text, sizeof text, "%010llx", capture.keys[m]);
+        if (capture.keys[m] && std::find(out.begin(), out.end(), text) == out.end())
+            out.push_back(text);
+    }
+    return out;
+}
+
 void capture_clear()
 {
     capture.tris.clear();
@@ -1014,6 +1027,13 @@ std::string state_json()
     j += ",\"leaving\":";
     j += leaving ? "true" : "false";
     j += ",\"error\":" + jstr(load_error);
+    j += ",\"models\":[";
+    {
+        const std::vector<std::string> keys = capture_model_keys();
+        for (size_t i = 0; i < keys.size(); i++)
+            j += (i ? ",\"" : "\"") + keys[i] + "\"";
+    }
+    j += "]";
     j += ",\"capture\":{\"triangles\":" + std::to_string(capture.tris.size()) + ",\"meshes\":" + std::to_string(capture.meshes)
         + ",\"valid\":" + (capture.valid ? "true" : "false") + ",\"serial\":" + std::to_string(capture.serial) + "}";
     return j + "}";
@@ -1142,6 +1162,18 @@ extern "C" void pc_studio_window(void)
         }
         if (!scene_message.empty())
             ImGui::TextWrapped("%s", scene_message.c_str());
+        {
+            const std::vector<std::string> keys = capture_model_keys();
+            if (!keys.empty()) {
+                std::string text = "Model key:";
+                for (const std::string& k : keys)
+                    text += " " + k;
+                ImGui::TextUnformatted(text.c_str());
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Copy"))
+                    ImGui::SetClipboardText(keys[0].c_str());
+            }
+        }
         // the look
         if (const Json* looks = at("looks")) {
             std::string names;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Painting metal and roughness in Aseprite, live (pc/tools/paint_roundtrip.py watch and live; pc/tools/paint_live.py; Gitea #20).
+"""Painting metal and roughness in Aseprite, live (pc/tools/paint_roundtrip.py watch and live; pc/tools/paint_live.py).
 
     python3 pc/tests/aseprite_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 

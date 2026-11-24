@@ -167,11 +167,11 @@ def suites(args, mode="egl"):
                    "dry run, tunables, refusals"),
         Suite("room_blender", [PY, str(TESTS / "room_blender_test.py")], 60, binary=None,
               sources=[ROOT / "pc/tools/room_blender.py", ROOT / "pc/tools/room_blender.json", ROOT / "pc/tools/blender/bake_room.py"],
-              note="the one-room Blender round trip (Gitea #20) without the game or Blender: the dump's polygons to texture boxes, "
+              note="the one-room Blender round trip without the game or Blender: the dump's polygons to texture boxes, "
                    "the glTF (a primitive and material per texture, UVs over the box, tags), the maps made from a bake"),
         Suite("model_blender", [PY, str(TESTS / "model_blender_test.py")], 60, binary=None,
               sources=[ROOT / "pc/tools/model_blender.py", ROOT / "pc/tools/room_blender.py", ROOT / "pc/tools/room_blender.json"],
-              note="a model through the Blender bake (Gitea #20) without the game or Blender: the model's settings over the room's, an "
+              note="a model through the Blender bake without the game or Blender: the model's settings over the room's, an "
                    "entry per texture keyed by the model, the maps cut from an atlas bake into each texture's folder"),
         Suite("paint_roundtrip", [PY, str(TESTS / "paint_roundtrip_test.py")], 60, binary=None,
               sources=[ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/subcraft_project.py", ROOT / "pc/tools/room_blender.py",
@@ -229,10 +229,10 @@ def suites(args, mode="egl"):
               note="64-bit: the engine relinked elsewhere resumes a snapshot through RPC restart at the same "
                    "moment and state (and as the original build does 60 vsyncs on); other game code refused"),
         Suite("plugin_images_smoke", [PY, str(TESTS / "plugin_images_smoke.py")], 600,
-              note="64-bit: each effect plug-in's tables are its own data section (Gitea #2): a re-read of the same plug-in file puts them back "
+              note="64-bit: each effect plug-in's tables are its own data section: a re-read of the same plug-in file puts them back "
                    "(A, B, A, A with changed tables), a mark and a save state during a cast hold and restore them exactly"),
         Suite("capture_pure_smoke", [PY, str(TESTS / "capture_pure_smoke.py")], 300,
-              note="a screenshot does not change the game (Gitea #26): the state hash before equals the hash after, and the game run on from a mark "
+              note="a screenshot does not change the game: the state hash before equals the hash after, and the game run on from a mark "
                    "equals with or without one"),
         Suite("engine_reload_smoke", [PY, str(TESTS / "engine_reload_smoke.py")], 600,
               note="64-bit: the engine library (build_boot.py --engine-library) reloads in place at a vsync: "
@@ -770,24 +770,24 @@ def suites(args, mode="egl"):
                       "presented, a 2000-vsync watchdog, clean afterwards")]
           if args.save.exists() else []),
         *([Suite("gim_text_loading_smoke", [PY, str(TESTS / "gim_text_loading_smoke.py"), "--card", str(args.save)], 900,
-                 note="the loading screen's NOW LOADING as real text with a glow (gitea #23): the pack measured from the executable's picture; original text "
+                 note="the loading screen's NOW LOADING as real text with a glow: the pack measured from the executable's picture; original text "
                       "(with or without a pack) and modern text with no pack are the picture byte for byte; the words and halo are drawn at the picture's "
                       "place at 4:3 and 16:9; gim_text_glow 0 removes the halo; a fill's glow colour is live")]
           if (ROOT / "data/SLUS_010.40").exists() and args.save.exists() else []),
         *([Suite("gim_text_smoke", [PY, str(TESTS / "gim_text_smoke.py")], 3000,
-                 note="pictures of text as real text (gitea #14): a pack made from the staff card's and the quote's own ink replaces their lines (one band of "
+                 note="pictures of text as real text: a pack made from the staff card's and the quote's own ink replaces their lines (one band of "
                       "changed rows per line), the rule under the title stays, the words follow the game's scanline wipe and the quote's fade, with "
                       "ui_text_overlay auto and off and at 16:9; original text with or without a pack, and modern text with no pack, are the picture "
                       "byte for byte")]
           if (ROOT / "data/GIM/STAFF004.GIM").exists() else []),
         *([Suite("battle_message_label_smoke", [PY, str(TESTS / "battle_message_label_smoke.py"), "--card", str(args.save)], 300,
                  note="battle message box (\"No target in range!\"): its header label (CAUTION) sits at the view's left edge in 16:9 "
-                      "and the 4:3 screen's in 4:3, not inside the widened box (Gitea #21)")]
+                      "and the 4:3 screen's in 4:3, not inside the widened box")]
           if args.save.exists() else []),
         *([Suite("menu_end_fade_smoke", [PY, str(TESTS / "menu_end_fade_smoke.py"), "--card", str(args.save)], 300,
                  note="the end rows of a menu list (OPTIONS scrolled): at 4x the setting menu_end_fade 0 (the game's stepped lines) "
                       "differs from 1 only in those rows, and at 1 the row fades out smoothly toward the list's edge, stronger "
-                      "than at 0.5 (Gitea #16)")]
+                      "than at 0.5")]
           if args.save.exists() else []),
         *([Suite("cast_speed_smoke", [PY, str(TESTS / "cast_speed_smoke.py"), "--card", str(args.save)], 300,
                  note="battle charging skip at fractional holds (0.75 s, 0.4 s, 1.3 s, mine and enemy, issue 25): "
@@ -883,7 +883,7 @@ def suites(args, mode="egl"):
           if args.save.exists() else []),
         *([Suite("data_menu_gutter_smoke", [PY, str(TESTS / "data_menu_gutter_smoke.py"), "--card", str(args.save)], 300,
                  note="the original Data page in 16:9 and 4:3: the field HUD kept drawn behind its picture shows nowhere "
-                      "beside it (the view's sides are black; Gitea #33)")]
+                      "beside it (the view's sides are black)")]
           if args.save.exists() else []),
         *([Suite("ui_data_smoke", [PY, str(TESTS / "ui_data_smoke.py"), "--card", str(args.save)], 600,
                  note="Data screen (MENU7 under a native frame): save bytes = the original's by pad and by mouse "
@@ -931,13 +931,13 @@ def suites(args, mode="egl"):
               note="2D lines: 1x = CPU, 4x scale-thick, joins closed, no light dots along outlines; "
                    "vector talk bubbles follow the game's zoom, all shapes; options saved"),
         Suite("wire_sphere_smoke", [PY, str(TESTS / "wire_sphere_smoke.py"), *(["--card", str(args.save)] if args.save.exists() else [])], 300,
-              note="the battle targeting sphere's wire drawn from the GTE's unrounded ends at ui_wire_width output pixels (gitea #19): thinner as the width falls"),
+              note="the battle targeting sphere's wire drawn from the GTE's unrounded ends at ui_wire_width output pixels: thinner as the width falls"),
         Suite("menu_tint_classic_smoke", [PY, str(TESTS / "menu_tint_classic_smoke.py"), *(["--card", str(args.save)] if args.save.exists() else [])], 300,
-              note="the menu tint on the game's own menus (gitea #17): the Command rows' panels take Slate / Crimson, the HUD and the 3D do not, the Original tint is the picture as it was"),
+              note="the menu tint on the game's own menus: the Command rows' panels take Slate / Crimson, the HUD and the 3D do not, the Original tint is the picture as it was"),
         Suite("lane_frozen_test", [PY, str(TESTS / "lane_frozen_test.py")], 300,
-              note="build_compare lanes do not follow their worktree (Gitea #13): shader_reload 0 and frozen plugins: an edited shader stage and plugin reload nothing; without them both reload"),
+              note="build_compare lanes do not follow their worktree: shader_reload 0 and frozen plugins: an edited shader stage and plugin reload nothing; without them both reload"),
         Suite("rood_rpc_launch_test", [PY, str(TESTS / "rood_rpc_launch_test.py")], 300,
-              note="games launched by rood_rpc: one from a short-lived thread survives it (PDEATHSIG follows the thread: Gitea #3's shape); one whose script ends on an exception does not outlive it"),
+              note="games launched by rood_rpc: one from a short-lived thread survives it (PDEATHSIG follows the thread); one whose script ends on an exception does not outlive it"),
         Suite("text_fade_smoke", [PY, str(TESTS / "text_fade_smoke.py")], 300,
               note="text without a box fading out (type 0 closing, type 6): glyphs at the opacity, no "
                    "PS1-resolution rectangle (font, original, overlay); the game's upload is seen with it off"),

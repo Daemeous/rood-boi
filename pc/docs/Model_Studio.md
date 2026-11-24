@@ -39,9 +39,9 @@ Looks: `neutral` is a key light (a sun) and a sky, the room's own lights, glows,
 - Animations are not scrubbed or chosen yet (P7): every render replays from M, so a model shows the pose of the same few ticks.
 - Names: enemies have theirs; characters and weapons are named by their id.
 
-## The texel locator (Aseprite and the studio, both ways; Gitea #37)
+## The texel locator (Aseprite and the studio, both ways)
 
-Code: `pc/src/studio_locate.cpp` (the maths: no game, no ImGui), `studio.cpp` (capture, marker, cursor, RPC), `render.c render_mesh_posed` (the posed triangles of a drawn model), `pc/tools/paint_live.py` (the bridge) and `pc/tools/aseprite/rood-live/rood-live.lua` (the extension, 1.3.0). Proof: `pc/tests/studio_locate_smoke.py` (the game), `pc/tests/aseprite_test.py` and `aseprite_extension_test.lua` (the bridge and the extension without Aseprite or the game).
+Code: `pc/src/studio_locate.cpp` (the maths: no game, no ImGui), `studio.cpp` (capture, marker, cursor, RPC), `render.c render_mesh_posed` (the posed triangles of a drawn model), `pc/tools/paint_live.py` (the bridge) and `pc/tools/aseprite/rood-live/rood-live.lua` (the extension, 1.4.0). Proof: `pc/tests/studio_locate_smoke.py` (the game), `pc/tests/aseprite_test.py` and `aseprite_extension_test.lua` (the bridge and the extension without Aseprite or the game).
 
 ### What Aseprite's Lua API can report (the spike; read from the API docs, github.com/aseprite/api, and tried against the installed Aseprite 1.3.18)
 

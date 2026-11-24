@@ -846,7 +846,7 @@ G-buffer has no material target and the GL present pass is unchanged
 (material_smoke checks the frame is identical). Rooms without dynamic lights show no highlights either
 (the game's baked light has no direction).
 
-## The key light (Gitea #20)
+## The key light
 
 The baked maps only shade light that has a direction, and most of a room's light does not: the PS1's vertex colours ignore
 normals, and some rooms (City Walls South) have no dynamic light at all. The key light is a soft, directional light per room
@@ -887,7 +887,7 @@ to its brightness, so the original art's lighting and mood stay. Vulkan only (Op
 
 ## Materials by object
 
-An entry may be keyed by an object as well as by texture or palette (Gitea #20 step 2; plan in
+An entry may be keyed by an object as well as by texture or palette (plan in
 `plans/2026-10-27-materials-and-inspection-design.md`): `"object": {"groups": [..], "polygons": [..], "models": ["4b8870d7"]}`
 beside `match` and `scope`. A group is the room geometry block a native room mesh draws (its byte offset in the room
 data), a polygon a room polygon (byte offset), a model the content hash of a character, weapon or prop (every copy).
@@ -911,7 +911,7 @@ does).
 
 ## Blender round trip (one room)
 
-`pc/tools/room_blender.py` takes a room out to Blender and brings maps back into the baked layer (Gitea #20; Blender 5.2
+`pc/tools/room_blender.py` takes a room out to Blender and brings maps back into the baked layer (Blender 5.2
 LTS, `/usr/bin/blender`, driven headless with `blender -b -P pc/tools/blender/bake_room.py`, Cycles on the CPU at a modest
 sample count, 4 threads, nice 19):
 
@@ -942,7 +942,7 @@ in each layer), so the texels they share stop taking whichever baked last. `shot
 (texture, group) (`object {groups}`, scoped to the room), which is what gives the group its variant (Materials by object);
 a texture on a single group keeps one entry and its maps in `<key>/` as before.
 
-### A model through the same bake (Gitea #20)
+### A model through the same bake
 
 `pc/tools/model_blender.py` does the room's steps for a character, weapon or prop (`all --model 4b8870d7 [--zone Z --room R]
 [--yaw DEG]`, out under `pc/build/model_blender/<model>`): `export` is `paint_roundtrip.py export model` (with `--zone` and `--room`
@@ -965,7 +965,7 @@ same texels, a mirrored face) holds the one baked last; and the maps are keyed b
 page it was loaded into: the same character loaded at another page is another hash with the same texture keys, so a model needs
 its own export and import per hash (two copies of one girl seen in the Undercity, `dfcf8792` at page 18 and `266d0792` at page 10, with the same 194 texture keys).
 
-### Metal and roughness from the colours (Gitea #20 step 3): an optional seed, off by default
+### Metal and roughness from the colours: an optional seed, off by default
 
 `room_blender.json` `metal.enabled` is false: maps are painted in a painter (next section). Set it true to seed `import` with this guess.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Material presets for painting a KIND of material in Aseprite in one stroke (Gitea #20; Materials.md "Painting metal and roughness
+"""Material presets for painting a KIND of material in Aseprite in one stroke (Materials.md "Painting metal and roughness
 per pixel in Aseprite (live)"). A preset is data: id, name, colour (its swatch), 0..1 values for the channels of the table (paint_channels.py: metal, roughness,
 height...), optional notes; a value for a channel the table does not have is carried as given, never expanded.
 

@@ -1,4 +1,4 @@
-/* GIM pictures drawn as real text (gitea #14; gim_text.cpp): the game side. vs_render_drawGimTiles and vs_render_drawGimScanlineWipe (game/battle, ROOD_PC) ask here
+/* GIM pictures drawn as real text (gim_text.cpp): the game side. vs_render_drawGimTiles and vs_render_drawGimScanlineWipe (game/battle, ROOD_PC) ask here
  * before they draw an image: the answer is yes when the player's text pack has the words of this picture and the text setting is the modern fonts, and then they
  * leave out what the pack's boxes cover (pc_gim_text_boxes) and ask for the carriers of its lines (pc_gim_text_words) where they draw it.
  * Compiled with the game headers (battle builds): the identity of the image is the loader's record (vs_render_gimLayers, its id: the game's GIM table

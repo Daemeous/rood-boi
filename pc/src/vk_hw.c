@@ -417,11 +417,6 @@ void pc_vk_hw_tex_palette(int slot, unsigned clut, int wide, const uint16_t* col
     uint16_t entry = (uint16_t)(slot + 1);
     tex_upload(&vk_hw.vram, (int)(clut & 63) + (wide ? 64 : 0), VK_TEX_TABLE_Y + (int)(clut >> 6 & 511), 1, 1, &entry);
 }
-void pc_vk_hw_tex_valid(const uint16_t* valid)
-{
-    if (pc_vk_hw_tex_ready())
-        tex_upload(&vk_hw.vram, 0, VK_TEX_VALID_Y, 96, 1, valid);
-}
 int pc_vk_hw_tex_read_page(int layer, int u0, int v0, int u1, int v1, uint16_t* out)
 {
     if (!pc_vk_hw_tex_ready() || layer < 0 || layer >= 96)

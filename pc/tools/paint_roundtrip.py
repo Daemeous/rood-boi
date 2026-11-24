@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Painting the game's textures in a real painting program and bringing the maps back (Gitea #20; pc/docs/Materials.md, "Painting
+"""Painting the game's textures in a real painting program and bringing the maps back (pc/docs/Materials.md, "Painting
 the maps in a painter").
 
     python3 pc/tools/paint_roundtrip.py export room  [--zone Z --room R] [--out DIR]
-    python3 pc/tools/paint_roundtrip.py export model (--model HASH | --model-at X,Y) [--zone Z --room R] [--out DIR]
+    python3 pc/tools/paint_roundtrip.py export model (--model HASH|studio | --model-at X,Y) [--zone Z --room R] [--out DIR]
     python3 pc/tools/paint_roundtrip.py paint  (room|model) ...   export, then open paint.gltf in SubCraft (or Blender)
     python3 pc/tools/paint_roundtrip.py (export|paint) ... --painter aseprite   also <out>/aseprite/<material>.aseprite (a layer per channel: Height, Metal, Roughness)
     python3 pc/tools/paint_roundtrip.py watch DIR     import each .aseprite file when it is saved
     python3 pc/tools/paint_roundtrip.py palette DIR   rewrite the swatches of DIR/aseprite/*.aseprite from the preset files (pixels untouched)
     python3 pc/tools/paint_roundtrip.py live DIR      watch, and take strokes live from the Aseprite extension (pc/tools/paint_live.py)
+    python3 pc/tools/paint_roundtrip.py pack DIR [--out FILE]    one small shareable .roodpack.zip of the painted pixels (no game texture)
+    python3 pc/tools/paint_roundtrip.py unpack FILE DIR           apply a pack onto a fresh export (--painter aseprite) of the same model or room
     python3 pc/tools/paint_roundtrip.py import DIR   [--layer DIR] [--catalog FILE] [--normal-format auto|opengl|directx] [--keep-seed]
 
 export  A glTF 2.0 file (paint.gltf) of the room the game is in (or of one model: a character, weapon or prop, as it stands in the
@@ -425,22 +427,59 @@ def write_package(out, positions, colours, tris, found, textures, labels, rgba_o
 
 # ---------------------------------------------------------------------------------------------- export
 
+def studio_model(game):
+    """The content key of the model summoned in the running game's model studio: what is under the middle of the picture (the studio frames
+    the model there), looking outwards over a grid of pixels until one is a model."""
+    state = game.call("studio")
+    if not state.get("entered") or not state.get("item"):
+        raise SystemExit("paint_roundtrip: --model studio needs the game's model studio open with a model summoned (Window > Studio)")
+    models = state.get("models") or []
+    if len(models) == 1:  # (the studio says which model it drew)
+        return models[0]
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:  # (the window's size: the header of a presented frame)
+        frame = pathlib.Path(tmp) / "frame.ppm"
+        game.call("present_dump", path=str(frame))
+        deadline = time.time() + 30
+        while time.time() < deadline and not (frame.exists() and len(frame.read_bytes()[:20].split()) >= 3):
+            time.sleep(0.05)
+        w, h = (int(v) for v in frame.read_bytes()[:20].split()[1:3])
+    cx, cy = w // 2, h // 2
+    for r in range(0, min(w, h) // 2, 12):
+        for dx, dy in ((0, 0),) if r == 0 else ((r, 0), (-r, 0), (0, r), (0, -r), (r, r), (-r, r), (r, -r), (-r, -r)):
+            text = game.call("material", action="pick", x=cx + dx, y=cy + dy).get("object", {}).get("text", "")
+            if text.startswith("m"):
+                return text[1:]
+    if models:
+        return models[0]
+    raise SystemExit("paint_roundtrip: could not find the studio's model in the picture (is it on screen?)")
+
+
 def export_package(args):
     import material_rollout
     out = pathlib.Path(args.out) if args.out else ROOT / "pc/user/paint" / (
         f"model-{args.model}" if args.target == "model" and args.model else
         f"room-{args.zone}-{args.room}" if args.zone is not None else args.target)
     out.mkdir(parents=True, exist_ok=True)
-    scratch = out / "scratch"
-    scratch.mkdir(exist_ok=True)
-    game = material_rollout.launch(scratch, argparse.Namespace(card=args.card))
+    live = getattr(args, "game", None)
+    if live:  # the running game (its studio's model, or the room it is in) instead of one started here
+        import rood_rpc
+        game = rood_rpc.Game(live)
+    else:
+        scratch = out / "scratch"
+        scratch.mkdir(exist_ok=True)
+        game = material_rollout.launch(scratch, argparse.Namespace(card=args.card))
     try:
         if args.zone is not None:
             rb.goto(game, args.zone, args.room, enemies=args.target == "model")  # (a model: the room's enemies are there to export)
         game.run(30)
-        dump = out / "scene.obj"
         model = args.model
         if args.target == "model":
+            if model == "studio":
+                model = studio_model(game)
+                if not args.out:  # (named after the model, as --model HASH is)
+                    out = ROOT / "pc/user/paint" / f"model-{model}"
+                    out.mkdir(parents=True, exist_ok=True)
             if not model and args.model_at:
                 x, y = (int(v) for v in args.model_at.split(","))
                 text = game.call("material", action="pick", x=x, y=y).get("object", {}).get("text", "")
@@ -449,7 +488,14 @@ def export_package(args):
                 model = text[1:]
             if not model:
                 raise SystemExit("paint_roundtrip: export model needs --model HASH or --model-at X,Y")
-            game.call("material", action="model_dump", model=model, path=str(dump))
+            dump = out / "scene.obj"
+            try:
+                game.call("material", action="model_dump", model=model, path=str(dump))
+            except Exception as e:
+                if "not drawn now" not in str(e):
+                    raise
+                raise SystemExit(f"paint_roundtrip: {e}\nThe model has to be on screen in the game that is asked: summon it in the model studio and "
+                                 "export from that game (--game SOCKET --model studio), or name the room that has it (--zone Z --room R).")
             # the model's ids: its content key names its materials (it follows the model into any texture page); the legacy id is kept beside
             row = next((r for r in game.call("material", action="model_ids")["models"] if model in (r["legacy"], r["content"])), None)
             model_legacy = row["legacy"] if row else (model if len(model) == 8 else "")
@@ -457,6 +503,7 @@ def export_package(args):
                 model = row["content"]
             groups = []
         else:
+            dump = out / "scene.obj"
             game.call("scene_dump", path=str(dump))
             groups = game.call("material", action="groups")["groups"]
         uses = game.call("emissive", action="uses", keys=True)["uses"]
@@ -475,7 +522,8 @@ def export_package(args):
                 textures[u["key"]] = {"w": w, "h": h, "box": u["box"], "tpage": u["tpage"], "clut": u["clut"], "entry": u.get("entry", "")}
         state = game.state()
     finally:
-        material_rollout.kill(game)
+        if not live:
+            material_rollout.kill(game)
     if args.target == "model":
         # a model's textures are boxes of a few pages: one atlas per page and palette (the painter paints the page, import cuts the boxes)
         labels, split, slices = [], {}, {}
@@ -497,6 +545,7 @@ def export_package(args):
         meta = {"target": "room", "zone": state["zone"], "room": state["room"]}
     records = write_package(out, positions, colours, tris, found, textures, labels, rgba_of, meta, seed_layers(args.bake),
                              outward=args.target == "model", aseprite=getattr(args, "painter", None) == "aseprite")
+    args.out = str(out)  # (where it went: `paint` opens it)
     print(f"export: {meta['target']} {meta.get('model') or '%s-%s' % (meta['zone'], meta['room'])}: {len(tris)} triangles, "
           f"{len(records)} materials -> {out / 'paint.gltf'} (images in {out / 'tex'})")
     return 0
@@ -874,7 +923,11 @@ def ensure_entries(args, seed, changed):
     return added
 
 
-def watch_package(args, stop=None, say=print):
+def say_now(*parts):
+    print(*parts, flush=True)  # (a terminal redirected to a file or a pipe shows each line as it happens)
+
+
+def watch_package(args, stop=None, say=say_now):
     """Imports each material's .aseprite file when it is saved: polls <dir>/aseprite every 0.2 s, and once a file's stamp has not moved for
     `args.debounce` seconds imports that material (as `import` does, the other materials untouched). `stop`: a threading.Event."""
     folder = pathlib.Path(args.dir)
@@ -914,6 +967,118 @@ def watch_package(args, stop=None, say=print):
     except KeyboardInterrupt:
         say("watch: stopped")
     return 0
+
+
+# ---------------------------------------------------------------------------------------------- pack / unpack
+
+PACK_FORMAT = 1
+
+
+def gray_of(rgba):
+    r, g, b = (rgba[..., i].astype(np.uint32) for i in range(3))
+    return ((r * 299 + g * 587 + b * 114 + 500) // 1000).astype(np.uint8)
+
+
+def pack_package(args, say=say_now):
+    """One small file (`.roodpack.zip`) of what a painter painted in a package's .aseprite files, safe to share: the model's content key,
+    and per page only the pixels the painter changed (a channel layer's pixels that differ from the game's own value, the Material layer's
+    swatch pixels), as PNGs that are transparent everywhere else. The reference layer (the game's texture) and the game's own map values
+    are never read into it. `unpack` applies it onto an export of the same model."""
+    import io
+    import zipfile
+    folder = pathlib.Path(args.dir)
+    seed = json.loads((folder / "seed.json").read_text())
+    pages, files = {}, {}
+    for label, rec in seed["labels"].items():
+        path = ase_path(folder, safe(label))
+        if not path.exists():
+            continue
+        h, w = rec["h"], rec["w"]
+        got = read_ase_channels(path)
+        kept = {}
+        for channel, canvas in got.items():
+            if canvas.shape[:2] != (h, w):
+                raise SystemExit(f"pack: {path.name}: the canvas is {canvas.shape[1]} x {canvas.shape[0]}, not {w} x {h}: it was resized")
+            if channel == "material":
+                painted = canvas[..., 3] > 0
+            else:
+                was = painted_seed(folder, rec, channel, h, w)
+                painted = (canvas[..., 3] > 0) & (gray_of(canvas) != (was if was is not None else neutral_map(channel, h, w)))
+            if not painted.any():
+                continue
+            out = np.zeros((h, w, 4), np.uint8)
+            out[painted] = canvas[painted]
+            out[painted, 3] = 255
+            buffer = io.BytesIO()
+            Image.fromarray(out, "RGBA").save(buffer, "PNG", optimize=True)
+            files[f"{safe(label)}/{channel}.png"] = buffer.getvalue()
+            kept[channel] = int(painted.sum())
+        if kept:
+            pages[label] = {"w": w, "h": h, "key": rec.get("key"), "object": rec.get("object"), "painted_texels": kept}
+    if not pages:
+        say("pack: nothing painted in the .aseprite files of " + str(folder) + " (save in Aseprite first)")
+        return 1
+    meta = {"format": PACK_FORMAT, "target": seed.get("target"), "model": seed.get("model"), "model_legacy": seed.get("model_legacy"),
+            "zone": seed.get("zone"), "room": seed.get("room"), "pages": pages, "about": "paint_roundtrip.py pack: painted pixels only (no game texture); apply with paint_roundtrip.py unpack"}
+    name = f"{seed.get('model') or 'room-%s-%s' % (seed.get('zone'), seed.get('room'))}.roodpack.zip"
+    target = pathlib.Path(args.out) if args.out else folder / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("pack.json", json.dumps(meta, indent=1))
+        for member, data in sorted(files.items()):
+            z.writestr(member, data)
+    say(f"pack: {'model ' + str(seed.get('model')) if seed.get('model') else 'room %s-%s' % (seed.get('zone'), seed.get('room'))}: {len(pages)} pages, {sum(sum(p['painted_texels'].values()) for p in pages.values())} painted texels, "
+        f"{target.stat().st_size} bytes -> {target}")
+    return 0
+
+
+def unpack_package(args, say=say_now):
+    """Applies a pack onto a fresh export of the same model (`export model ... --painter aseprite`): its pixels go into the package's .aseprite
+    files (the file stays what Aseprite opens, so the work can go on there) and are imported, as a save in Aseprite would."""
+    import io
+    import zipfile
+    folder = pathlib.Path(args.dir)
+    seed = json.loads((folder / "seed.json").read_text())
+    with zipfile.ZipFile(args.pack) as z:
+        meta = json.loads(z.read("pack.json"))
+        if meta.get("format") != PACK_FORMAT:
+            raise SystemExit(f"unpack: {args.pack} is a pack of format {meta.get('format')}; this tool reads {PACK_FORMAT}")
+        if [meta.get(k) for k in ("target", "model", "zone", "room")] != [seed.get(k) for k in ("target", "model", "zone", "room")]:
+            raise SystemExit(f"unpack: the pack is for {meta.get('model') or ('room %s-%s' % (meta.get('zone'), meta.get('room')))}, this export is of "
+                             f"{seed.get('model') or ('room %s-%s' % (seed.get('zone'), seed.get('room')))}: export what the pack is for "
+                             "(a model: summon it in the model studio, then export with --model studio)")
+        applied = []
+        for label in meta["pages"]:
+            rec = seed["labels"].get(label)
+            path = ase_path(folder, safe(label))
+            if rec is None or not path.exists():
+                say(f"unpack: {label}: not in this export" + ("" if rec is None else " (export with --painter aseprite)") + "; skipped")
+                continue
+            sprite = ase.read(path)
+            h, w = sprite.height, sprite.width
+            for channel, name in {**ASE_LAYERS, "material": ASE_MATERIAL}.items():
+                member = f"{safe(label)}/{channel}.png"
+                if member not in z.namelist():
+                    continue
+                layer = sprite.layer(name)
+                if layer is None:
+                    say(f"unpack: {label}: the file has no {name} layer; skipped")
+                    continue
+                painted = np.asarray(Image.open(io.BytesIO(z.read(member))).convert("RGBA"))
+                if painted.shape[:2] != (h, w):
+                    raise SystemExit(f"unpack: {label}: the pack's {name} is {painted.shape[1]} x {painted.shape[0]}, the file {w} x {h}")
+                pixels = layer.pixels.copy() if layer.pixels is not None else np.zeros((h, w, 4), np.uint8)
+                mask = painted[..., 3] > 0
+                pixels[mask] = painted[mask]
+                layer.pixels = pixels
+            ase.write(path, w, h, [{"name": l.name, "pixels": l.pixels if l.pixels is not None else np.zeros((h, w, 4), np.uint8),
+                                    "visible": l.visible, "locked": l.locked, "opacity": l.opacity, "blend": l.blend}
+                                   for l in sprite.layers if l.kind == ase.KIND_NORMAL], palette=sprite.palette or None)
+            applied.append(label)
+    ns = argparse.Namespace(dir=str(folder), layer=getattr(args, "layer", None), catalog=getattr(args, "catalog", None), normal_format="auto", keep_seed=False)
+    result = run_import(ns, only=set(applied), say=say)
+    say(f"unpack: {len(applied)} pages applied, {result['written']} maps written into {result['layer']}")
+    return 0 if applied else 1
 
 
 def open_painter(out, painter):
@@ -965,6 +1130,7 @@ def main():
     e.add_argument("--model-at", help="X,Y: the model under a pixel of the view")
     e.add_argument("--bake", action="append", default=[], help="a bake's materials folder (room_blender.py <out>/materials) to seed the maps from, the geometry-based normals included; also $ROOD_MATERIALS_BAKED")
     e.add_argument("--out")
+    e.add_argument("--game", metavar="SOCKET", help="export from this running game (its RPC socket: $ROOD_RPC, pc/build/boot/rpc-live.sock for pc/run-game.sh) instead of starting one; --model studio is the model summoned in its model studio")
     e.add_argument("--card", default=str(ROOT / "pc/build/test-card1.mcd"))
     painters = ["auto", "subcraft", "blender", "aseprite"]
     e.add_argument("--painter", choices=painters, default="auto", help="aseprite: also write <out>/aseprite/<material>.aseprite (Metal and Roughness layers for a pixel painter; Materials.md)")
@@ -983,6 +1149,14 @@ def main():
                    help="the painter's normal maps: auto (DirectX when the file's name says so: normalDX, Normal_DirectX), opengl, or directx (green is flipped)")
     i.add_argument("--keep-seed", action="store_true",
                    help="where a painted map still has the painter's flat fill (most of the image), keep the game's own map there instead")
+    pk = sub.add_parser("pack", help="write one small file (.roodpack.zip) of what you painted in a model's package: painted pixels only, no game texture, safe to share")
+    pk.add_argument("dir")
+    pk.add_argument("--out", help="the file (default: <dir>/<model>.roodpack.zip)")
+    up = sub.add_parser("unpack", help="apply a .roodpack.zip onto a fresh export of the same model (export model ... --painter aseprite): into its .aseprite files and the game's maps")
+    up.add_argument("pack")
+    up.add_argument("dir")
+    up.add_argument("--layer", help="the maps' layer (default: the user layer)")
+    up.add_argument("--catalog", help="the user catalog file")
     pal = sub.add_parser("palette", help="rewrite the palette of the package's .aseprite files from the preset files (material_presets.py); pixels untouched; close the files in Aseprite first")
     pal.add_argument("dir")
     rk = sub.add_parser("rekey", help="move the user's model paint to the models' content keys: the game's ids into model_aliases.json, with --apply the entries and maps (copied)")
@@ -1000,13 +1174,17 @@ def main():
         w.add_argument("--debounce", type=float, default=0.3, help="seconds a file must be still before it is imported")
         if name == "live":
             w.add_argument("--port", type=int, default=47480, help="the WebSocket port on localhost (the extension's default)")
-            w.add_argument("--rpc", help="the game's RPC socket (default: ROOD_RPC or pc/build/boot/rpc.sock)")
+            w.add_argument("--rpc", help="the game's RPC socket (default: ROOD_RPC, else pc/build/boot/rpc-live.sock, the one pc/run-game.sh opens)")
             w.add_argument("--no-watch", action="store_true", help="do not also import saved files")
     args = parser.parse_args()
     if args.command == "watch":
         return watch_package(args)
     if args.command == "palette":
         return refresh_palettes(args)
+    if args.command == "pack":
+        return pack_package(args)
+    if args.command == "unpack":
+        return unpack_package(args)
     if args.command == "rekey":
         return rekey(args)
     if args.command == "live":
@@ -1021,8 +1199,12 @@ def main():
         out = args.out or ROOT / "pc/user/paint" / (f"model-{args.model}" if args.target == "model" and args.model else
                                                     f"room-{args.zone}-{args.room}" if args.zone is not None else args.target)
         started, opened = open_painter(out, args.painter)
-        print(f"paint: {started} opened {opened}; paint, export the maps into that folder, then: "
-              f"python3 pc/tools/paint_roundtrip.py import {out}" if started else
+        print((f"paint: Aseprite opened {opened}; start the live link in another terminal: python3 pc/tools/paint_roundtrip.py live {out}"
+               f" (Ctrl+S in Aseprite keeps your work)" if started == "Aseprite" else
+               f"paint: {started} opened {opened}; paint, export the maps into that folder, then: "
+               f"python3 pc/tools/paint_roundtrip.py import {out}") if started else
+              f"paint: Aseprite is not on the PATH (or there are more than six files); open the files in {opened} by hand, then: python3 pc/tools/paint_roundtrip.py live {out}"
+              if args.painter == "aseprite" else
               f"paint: neither subcraft nor blender is on the PATH; open {pathlib.Path(out) / 'paint.gltf'} in your painter")
     return status
 

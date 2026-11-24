@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A painted height map shades as the baked one does (pc/docs/Materials.md "Height and normals"; RPC material map_set; Gitea #20).
+"""A painted height map shades as the baked one does (pc/docs/Materials.md "Height and normals"; RPC material map_set).
 
     python3 pc/tests/material_height_paint_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 

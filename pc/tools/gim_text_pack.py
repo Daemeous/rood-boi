@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Write the text pack of the game's pictures of text (gitea #14): for each GIM file the lines of ink (a box and a colour per row each), and their words.
+"""Write the text pack of the game's pictures of text: for each GIM file the lines of ink (a box and a colour per row each), and their words.
 
     python3 pc/tools/gim_text_pack.py [--data data/GIM] [--out pc/user/gim_text] [--ocr auto|off] [NAME ...]    (JO DEMO_001 STAFF001 ...; STAFF* globs)
-    python3 pc/tools/gim_text_pack.py NOWLOADING [--exe data/SLUS_010.40] [--font FILE]    (the loading screen's picture, which is in the executable: gitea #23)
+    python3 pc/tools/gim_text_pack.py NOWLOADING [--exe data/SLUS_010.40] [--font FILE]    (the loading screen's picture, which is in the executable)
 
 Reads the player's own disc files (pc/tools/gim_decode.py: what the pictures are) and writes pc/user/gim_text/<NAME>.txt, which the game reads (pc/src/gim_text.cpp:
 with the modern fonts on, a picture the pack has words for is drawn as real text at its lines' places and in the colours sampled here, row by row).

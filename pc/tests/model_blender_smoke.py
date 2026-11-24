@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """A model through Blender and back (pc/tools/model_blender.py, pc/tools/blender/check_gltf.py; pc/docs/Materials.md "Blender round
-trip"; Gitea #20).
+trip").
 
     python3 pc/tests/model_blender_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 

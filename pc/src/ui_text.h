@@ -267,7 +267,7 @@ void pc_ui_text_get_stats(pc_ui_text_stats* s);
  * Returns the UTF-8 length. For the modern menus (pc/src/ui). */
 int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size);
 
-/* Lines of a picture of text drawn as real text (gim_text.cpp, gitea #14). The game's picture drawer (vs_render_drawGimTiles and the
+/* Lines of a picture of text drawn as real text (gim_text.cpp). The game's picture drawer (vs_render_drawGimTiles and the
  * scanline wipe) makes a sprite item per line (a carrier: 1 x 1, the texels PC_PICTURE_U / V and CLUT PC_PICTURE_CLUT) at the place the
  * picture is drawn in the ordering table and registers its command word with the line: the hardware path draws the line's glyph image
  * there instead (anti-aliased at any resolution, coloured by the fill, in the game's draw order: its brightness, the wipes and the fades

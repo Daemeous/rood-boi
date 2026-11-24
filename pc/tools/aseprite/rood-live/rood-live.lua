@@ -7,7 +7,7 @@
 -- Message to the bridge (one binary frame): u32 big-endian header length, a JSON header, the cel's RGBA bytes.
 -- Replies are JSON text: {"ok":..,"game":..,"note":".."}.
 --
--- The texel locator (the model studio, Gitea #37): Aseprite has no mouse-move event, but app.editor.spritePos is the pixel under the
+-- The texel locator (the model studio): Aseprite has no mouse-move event, but app.editor.spritePos is the pixel under the
 -- cursor, so a timer reads it (HOVER_INTERVAL) and, when it changes over a rood sprite, sends {"locate":{"material","x","y"}} as text:
 -- the game's studio marks that texel on the model. The other way the bridge sends {"select":{"material","x","y","scroll"}} (the
 -- texel the cursor or a click picked on the model in the studio): the texel is selected (a 1 x 1 selection) and, for a click, the
@@ -97,15 +97,27 @@ function init(plugin)
   openDialog = function()
     if dialog then return end
     pcall(function()
-      local d = Dialog{ title = "Rood live", onclose = function() if dialog == d then dialog = nil end end }
+      local d
+      d = Dialog{ title = "Rood live", onclose = function()
+        pcall(function() prefs.dialogX, prefs.dialogY = d.bounds.x, d.bounds.y end)
+        if dialog == d then dialog = nil end
+      end }
       d:label{ id = "status", label = "Game", text = status.text }
       d:label{ id = "swatch", label = "Swatch", text = swatchText() }
       for i, p in ipairs(presets) do -- one button per preset: sets the colour, picks the Material layer
         d:button{ text = p.name, onclick = function() pickPreset(p) end }
         if i % 3 == 0 then d:newrow() end
       end
-      d:show{ wait = false, bounds = Rectangle(20, 60, 400, 120 + 32 * math.ceil(#presets / 3)) }
+      d:show{ wait = false } -- (centred first: the centre is how the Aseprite window's width is known, there is no API for it)
       dialog = d
+      pcall(function()
+        local b = d.bounds
+        local x, y = prefs.dialogX, prefs.dialogY -- where the user last left it
+        if not x or not y then -- else the right edge of the window, under the menu: the canvas is on the left
+          x, y = math.floor((b.x + b.width / 2) * 2) - b.width - 6, 40
+        end
+        d.bounds = Rectangle(x, y, b.width, b.height)
+      end)
     end)
   end
 
@@ -201,7 +213,12 @@ function init(plugin)
   local function escape(s) return (s:gsub('[\\"]', "\\%0")) end
 
   -- The cursor over a rood sprite's canvas: its pixel, when it changed, to the bridge (the studio marks it on the model).
+  local function rememberDialog() -- (a window the user moved stays there: also kept when Aseprite quits with it open)
+    if dialog then pcall(function() prefs.dialogX, prefs.dialogY = dialog.bounds.x, dialog.bounds.y end) end
+  end
+
   local function hover()
+    rememberDialog()
     if not connected or prefs.hover == false then return end
     pcall(function()
       local editor = app.editor

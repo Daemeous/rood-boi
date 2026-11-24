@@ -1,4 +1,4 @@
-// GIM pictures drawn as real text (gitea #14). The game shows some text as pictures (data/GIM: the intro quote, the briefing pages, the staff credit cards:
+// GIM pictures drawn as real text. The game shows some text as pictures (data/GIM: the intro quote, the briefing pages, the staff credit cards:
 // pc/tools/gim_decode.py). With the modern fonts on (ui_text font) and the player's own text pack for a picture (pc/user/gim_text/<FILE>.txt, written by
 // pc/tools/gim_text_pack.py from the player's disc, never in the repository) the picture's drawers (vs_render_drawGimTiles, the scanline wipe) leave what its pack
 // lines' boxes cover out of the picture and make a carrier sprite item per line at the place where they draw the picture (pc_gim_text_carry); ui_text.c sets the line
@@ -464,7 +464,7 @@ extern "C" void pc_gim_text_carry(int id, int layer, int columns, int rows, int 
     });
 }
 
-// The loading screen (gitea #23): "NOW LOADING" is a picture in the executable (126 x 20 texels at the centre of the 320 x 224 screen), uploaded into the frame
+// The loading screen: "NOW LOADING" is a picture in the executable (126 x 20 texels at the centre of the 320 x 224 screen), uploaded into the frame
 // buffers with LoadImage; no ordering table, no packet. With the pack NOWLOADING (pc/tools/gim_text_pack.py: measured from the executable's image) and the modern
 // fonts on, _displayLoadingScreen leaves the upload out and draws the pack's lines as carriers drawn at once (DrawPrim), as the picture's own pixels would be
 // shown: the picture's mapping is its place on the screen, and the 4:3 and 16:9 views differ only in the view's transform, as for every picture.

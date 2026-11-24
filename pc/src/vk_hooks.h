@@ -53,7 +53,6 @@ void pc_vk_hw_upload_rects(const uint16_t* vram, const int (*rects)[4], int coun
  * 256-entry palette's table half); a layer or slot read back (synchronously). 0 when the resources are not made. */
 int pc_vk_hw_tex_ready(void);
 void pc_vk_hw_tex_page(int layer, const uint16_t* texels);
-void pc_vk_hw_tex_valid(const uint16_t* valid); /* 96 halfwords: the layers the ray readers may read */
 void pc_vk_hw_tex_palette(int slot, unsigned clut, int wide, const uint16_t* colours);
 int pc_vk_hw_tex_read_page(int layer, int u0, int v0, int u1, int v1, uint16_t* out);
 int pc_vk_hw_tex_read_palette(int slot, uint16_t* out);

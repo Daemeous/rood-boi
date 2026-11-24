@@ -273,7 +273,7 @@ void rood_lights::track_room()
 
 /* Light animation is a function of this time. By default (setting light_clock 0) the game's own: its vsync count and the
  * image's place in the vsync (interpolation), so the picture a frame has is the same whatever the machine is doing (the path
- * tracer's accumulation, the GI and NRD histories and the lights' flicker all follow the game's frames; Gitea #13) and a game
+ * tracer's accumulation, the GI and NRD histories and the lights' flicker all follow the game's frames) and a game
  * paused holds its lights still. With light_clock 1 the wall clock, sampled once per presented frame (gpu_hw.c calls
  * pc_lights_new_frame after each present), so every renderer pass of a frame (present shader, path tracer, haze) sees the
  * same lights and a paused game's lights go on flickering (the editor's preview). RPC actors {time} fixes it either way. */
@@ -1693,7 +1693,7 @@ std::vector<std::pair<int, Kept>> kept_by_budget;
 /* The frame the light budgets' hysteresis (which lights were kept last frame, and so stay) is counted in: the game's own, its vsync and
  * the image's place in it, not the count of presents: a paused game is redrawn as often as the machine and the requests make, and
  * each redraw would have moved the kept sets on, so with more lights than the budget the picks flipped from present to present and the
- * picture depended on how many presents there had been (Gitea #13). The same frame asked twice picks the same lights. */
+ * picture depended on how many presents there had been. The same frame asked twice picks the same lights. */
 unsigned light_frame_id()
 {
     return pc_frame_vsync_count() * 1024u + (unsigned)(pc_frame_phase() * 1000.0f);

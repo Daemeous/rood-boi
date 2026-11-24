@@ -242,7 +242,7 @@ there's some subtle displacement". Two causes, two pieces of work:
   only with the user's OK; game art never leaves the machine). Instances (part
   3) take these maps as their texture inputs.
 
-## Plan 2026-11-21: materials by object (Gitea #20 step 2)
+## Plan 2026-11-21: materials by object
 
 The design's "later step": an entry may be keyed by an object as well as by texture or palette, so two objects
 that share a texture (PS1 art is full of them) take different materials. Decisions (the builder's):

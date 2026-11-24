@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""pc/tools/model_blender.py without the game or Blender (Gitea #20): the model's settings over the room's, the catalog entries a model's
+"""pc/tools/model_blender.py without the game or Blender: the model's settings over the room's, the catalog entries a model's
 textures get, the maps cut from an atlas bake into each box of it.
 
     python3 pc/tests/model_blender_test.py"""

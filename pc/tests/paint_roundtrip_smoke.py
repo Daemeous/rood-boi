@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Painting the maps in a painter and bringing them back (pc/tools/paint_roundtrip.py; pc/docs/Materials.md "Painting the maps in a
-painter"; Gitea #20).
+painter").
 
     python3 pc/tests/paint_roundtrip_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 

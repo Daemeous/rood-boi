@@ -345,7 +345,7 @@ haze (`scaled.frag`). Integrated GPUs start at GI resolution 1.5 (3 on discrete 
 (skinning, BLAS refits, TLAS), surface, trace, haze, temporal, filter,
 present.
 
-### The path-traced picture follows the game's frames (Gitea #13)
+### The path-traced picture follows the game's frames
 
 The picture the path tracer presents for a game frame does not depend on how many times the machine
 presented it or how long it took. A paused game redraws at 60 Hz and after every served request, and

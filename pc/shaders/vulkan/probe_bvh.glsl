@@ -35,7 +35,7 @@ uint surface_texel(Tri t, vec2 bc) {
     vec2 uv2 = vec2(t.info.y & 255u, (t.info.y >> 8) & 255u);
     vec2 uv = uv0 * (1.0 - bc.x - bc.y) + uv1 * bc.x + uv2 * bc.y;
     uint tpage = t.info.y >> 16, u = uint(uv.x) & 255u, v = uint(uv.y) & 255u;
-    return (tpage & TPAGE_RESOURCE) != 0u && page_valid(tpage) ? texel_page(u, v, tpage, t.info.z & 0xffffu) : texel_at(u, v, tpage, t.info.z & 0xffffu);
+    return (tpage & TPAGE_RESOURCE) != 0u ? texel_page(u, v, tpage, t.info.z & 0xffffu) : texel_at(u, v, tpage, t.info.z & 0xffffu);
 }
 vec3 vertex_rgb(float w) { uint c = floatBitsToUint(w); return vec3(c & 255u, (c >> 8) & 255u, (c >> 16) & 255u) / 255.0; }
 // Nearest hit (or any hit) along o + d t, t < t_max; clear and translucent

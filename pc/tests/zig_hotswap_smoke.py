@@ -45,7 +45,7 @@ def build(command):
     if os.environ.get("ROOD_BUILD_LOCK"):
         command = ["flock", os.environ["ROOD_BUILD_LOCK"], *command]
     start = time.monotonic()
-    result = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, timeout=300)
+    result = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, timeout=900)
     if result.returncode:
         raise RuntimeError(result.stdout[-6000:] + result.stderr[-6000:])
     return time.monotonic() - start

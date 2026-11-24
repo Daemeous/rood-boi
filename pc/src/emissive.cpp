@@ -53,7 +53,7 @@ float pc_relief_baked = 2.0f;
 float pc_relief_indirect = 2.0f;
 float pc_relief_reach = 96.0f;
 float pc_relief_overhead = 0.6f;
-int pc_key_light = 0;  /* off by default: the owner prefers the bake without it (2026-11-22, Gitea #20) */
+int pc_key_light = 0;  /* off by default: the owner prefers the bake without it (2026-11-22) */
 float pc_key_light_strength = 1.0f;
 int pc_auto_height_preview = 0;
 const uint16_t* pc_native_vram(void);

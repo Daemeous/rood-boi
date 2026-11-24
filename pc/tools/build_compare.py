@@ -107,7 +107,7 @@ def frozen_plugins(out):
     """The shipped plugins as they are now, copied into the lane's folder: the game watches its plugin files and reloads a changed one, and
     shader files likewise (setting shader_reload, off in every lane below), so a lane that runs while its worktree is switched or edited
     (a checkout, a merge, a rebuild) would draw with the files of the moment they changed: a run of the GI platforms lane differed from its
-    own control for its whole length that way (Gitea #13: shaders hot reloaded at boot, 'rood.options files changed: reloading'). The lane
+    own control for its whole length that way (shaders hot reloaded at boot, 'rood.options files changed: reloading'). The lane
     tests the build and its files as they were when it started."""
     import shutil
     dst = pathlib.Path(out) / "shipped-plugins"
@@ -932,7 +932,7 @@ def scene_opening(g, cp):
 
 def scene_opening_quote(g, cp):
     """The opening's quote (JO.GIM, the intro quote of A. J. Durai): New Game from the title (no card: Start), the manor's picture card (the
-    first 15 s), then Start again, which skips the opening to the quote; the quote held on screen (gitea #14: the picture drawn as real text)."""
+    first 15 s), then Start again, which skips the opening to the quote; the quote held on screen (the picture drawn as real text)."""
     g.run(60)
     g.press("start", vsyncs=4, settle=90)
     for _ in range(15):

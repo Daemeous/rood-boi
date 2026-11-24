@@ -76,7 +76,7 @@ int render_frames = 4;    /* game frames a render runs (RPC photo render_frames)
 int render_max_vsyncs = 40;
 std::string last_error;
 
-/* ---- the lead and the history (Gitea #34) ----
+/* ---- the lead and the history ----
  *
  * A render re-runs game frames, so a render from the held moment M ended render_frames frames on. The hold is therefore
  * asked in two steps: the game keeps running live for render_frames frames from the boundary it was asked at (L), the

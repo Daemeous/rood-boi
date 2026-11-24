@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """A comparison lane does not follow its worktree: build_compare's games run with the shaders as built (setting shader_reload 0) and a copy of
-the shipped plugins (frozen_plugins), so a checkout, merge or edit while a lane runs cannot change what it draws (Gitea #13: the first run of a
+the shipped plugins (frozen_plugins), so a checkout, merge or edit while a lane runs cannot change what it draws (the first run of a
 GI platforms pair differed for its whole length from the two after it; its log shows 'shader hot reload: 9 pipelines made again' and
 'rood.options: files changed: reloading' during boot, the worktree having been switched under it).
 

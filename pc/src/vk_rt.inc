@@ -1278,7 +1278,7 @@ static void vrt_run(const float to_image[16], const float eye[3], float footprin
     /* The same picture again (a paused game redrawn, once for each request served and at 60 Hz: as many as the wall clock lets
      * the machine make between two steps) is not a new frame: the trace's random numbers (the frame index) and the temporal
      * and NRD histories advance on the game's frames and its interpolation images only, so the picture a step ends on does
-     * not depend on how many times the machine redrew it (Gitea #13). What a frame is of: the game's vsync and the image's
+     * not depend on how many times the machine redrew it. What a frame is of: the game's vsync and the image's
      * place in it, the camera and eye, every input of the trace (its uniforms, the lights) and of the accumulation. */
     {
         extern float pc_present_phase;

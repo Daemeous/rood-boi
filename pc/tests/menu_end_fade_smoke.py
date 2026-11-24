@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The end rows of a menu list fade out smoothly (Gitea #16; setting menu_end_fade).
+"""The end rows of a menu list fade out smoothly (setting menu_end_fade).
 
     python3 pc/tests/menu_end_fade_smoke.py [--card pc/build/test-card1.mcd] [--out DIR]
 

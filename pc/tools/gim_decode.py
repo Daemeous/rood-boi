@@ -5,8 +5,8 @@ the default output, pc/build/gim, is ignored).
     python3 pc/tools/gim_decode.py [--data data/GIM] [--out pc/build/gim] [NAME ...]
 
 NAME is a file stem (JO, STAFF003, DEMO_001) or a glob (STAFF*); none: every file. One PNG per image of the file (a file holds one to three:
-JO.png, JO_1.png ...), RGBA, the colours as the game's palette gives them, a palette entry of 0 transparent. What the files are (findings of
-gitea #14, the pictures the game shows as text):
+JO.png, JO_1.png ...), RGBA, the colours as the game's palette gives them, a palette entry of 0 transparent. What the files are (findings about
+the pictures the game shows as text):
 
     JO_1            the intro quote ("The body is but a vessel for the soul ... A. J. Durai"), one image of eight lines
     VKP_0/1/2 _n    the Valendia Knights' report pages (Leá Monde's history, the survivors' report, the incident report)

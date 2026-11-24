@@ -6,7 +6,7 @@
 The main menu's DATA / SAVE / LOAD page (the original screen, ui_menus off) keeps the field HUD drawn behind its picture: the
 picture is opaque over the whole 4:3 screen, which hides the HUD. In 16:9 (widescreen) the HUD's panels hug the view's edges
 and the picture reaches only the 4:3 part, so a clipped strip of the HP gauge stayed drawn in the left side beside it, and a
-strip in the right (Gitea #33). A black tile behind the picture, spread over the view (58EC.c _coverViewBehindPicture),
+strip in the right. A black tile behind the picture, spread over the view (58EC.c _coverViewBehindPicture),
 covers them.
 
 - widescreen (aspect 2, widescreen 1; the window is 960x720, the view 960x540 from y 90, the 4:3 picture x 160..800):

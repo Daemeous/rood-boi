@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The battle targeting sphere's wire drawn at the output's own resolution (pc/src/gpu_hw.c pc_hw_line, ui_wire_width; gitea #19).
+"""The battle targeting sphere's wire drawn at the output's own resolution (pc/src/gpu_hw.c pc_hw_line, ui_wire_width).
 
 The sphere (Circle twice with the weapon out and no target in range) is a polyline of game line packets between whole-pixel ends. Its draw
 item carries the GTE's unrounded ends (draw_items.h PC_ITEM_WIRE), and pc_hw_line draws a thin, feathered line from them: ui_wire_width

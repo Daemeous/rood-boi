@@ -20,6 +20,7 @@ a texel's gray is its map value, the catalog entry of the painted object is made
 import argparse
 import base64
 import json
+import os
 import pathlib
 import socketserver
 import struct
@@ -38,12 +39,21 @@ import material_presets as mp
 
 
 
+def default_socket():
+    """The game's RPC socket when none is named: $ROOD_RPC, else the one pc/run-game.sh gives the game it starts (rpc-live.sock), else
+    rood_rpc's default."""
+    if os.environ.get("ROOD_RPC"):
+        return os.environ["ROOD_RPC"]
+    played = pathlib.Path(rood_rpc.ROOT) / "pc/build/boot/rpc-live.sock"
+    return str(played) if played.exists() else rood_rpc.DEFAULT_SOCKET
+
+
 class Bridge:
     def __init__(self, folder, rpc=None, layer=None, catalog=None):
         self.folder = pathlib.Path(folder)
         self.seed = json.loads((self.folder / "seed.json").read_text())
         self.labels = {pr.safe(label): (label, rec) for label, rec in self.seed["labels"].items()}
-        self.rpc = rpc or rood_rpc.DEFAULT_SOCKET
+        self.rpc = rpc or default_socket()
         self.ns = argparse.Namespace(dir=str(self.folder), layer=layer, catalog=catalog, normal_format="auto", keep_seed=False)
         self.game, self.sent, self.entries, self.lock = None, {}, set(), threading.Lock()
         self.pick_serial = None  # the studio's pick last passed on (None: the first look only learns it)
