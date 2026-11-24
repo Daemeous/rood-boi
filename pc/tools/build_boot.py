@@ -582,6 +582,11 @@ def compile_zig(name, modules, root_name, overlay=None, win_modules=None):
     obj = out / f"{name}.o"
     if not coff:
         run(zig_command(ZIG_ELF, modules, root_name, obj))
+    elif not engine_library:
+        # --coff (a Windows host): an ELF copy as well, never linked, only for the data imports' types
+        # (lp64_native_imports reads DWARF; a Zig COFF object carries CodeView, so the imports only the
+        # Zig declares had no types and stayed pinned). Zig cross-compiles it from the COFF twin's modules.
+        run(zig_command(ZIG_ELF, win_modules or modules, root_name, obj))
     if win:
         run(zig_command(ZIG_COFF, win_modules or modules, root_name, twin(obj)))
     check_zig_object(obj, overlay)
@@ -2158,13 +2163,15 @@ def lp64_native_imports():
     scratch = pathlib.Path(tempfile.mkdtemp(prefix="import_types", dir=out))
     def query_types(item):
         obj, names = item
-        key = result_cache.key(["import_types", *names], [aobj(obj), root / "pc/tools/import_types.py"])
+        # (on a Windows host the Zig's types come from its ELF copy: compile_zig)
+        typed = obj if coff and is_zig(obj) and pathlib.Path(obj).exists() else aobj(obj)
+        key = result_cache.key(["import_types", *names], [typed, root / "pc/tools/import_types.py"])
         cached = result_cache.get(key)
         if cached is not None:
             return obj, json.loads(cached)
         request, reply = scratch / (obj.stem + ".in.json"), scratch / (obj.stem + ".out.json")
         request.write_text(json.dumps(names))
-        subprocess.run(["gdb", "-batch", "-nx", str(aobj(obj)), "-ex",
+        subprocess.run(["gdb", "-batch", "-nx", str(typed), "-ex",
                         f"python import sys; sys.argv = ['import_types', {str(request)!r}, {str(reply)!r}]",
                         "-x", str(root / "pc/tools/import_types.py")],
                        cwd=root, check=True, capture_output=True)
