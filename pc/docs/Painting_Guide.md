@@ -49,6 +49,10 @@ The model now stands on the stage. Leave the studio open for the rest of the ste
 
 Screenshot: the studio with a character on the grey stage.
 
+### Painting without the game: rood-studio
+
+`pc/run-studio.sh` starts rood-studio, the same studio with no game behind it: no save to load, the models straight from the disc (`--character N`, `--enemy N`, `--weapon N` start with one). Its models are on the left, its controls on the right (the Studio window's, plus the Animation list, Play and Frame to pose the model); the pointer on the model orbits (drag) and zooms (wheel), F frames it. Steps 4 to 10 below are the same with the studio's socket, `pc/build/boot/rpc-studio.sock`, in place of the game's. The live link (step 5) paints into whichever of the studio and the game is running, or both at once: leave `rood-studio` open beside the game and a stroke shows in both, the studio's own pick and marker (step 8) working on the studio.
+
 ### 3. Install the Aseprite extension (once)
 
 ```
@@ -77,7 +81,7 @@ In the second terminal, leave this running while you paint:
 python3 pc/tools/paint_roundtrip.py live pc/user/paint/model-<id>
 ```
 
-Use the folder name step 4 printed. It should say that the game is reachable. If it says the game is not running, your game was not started with `pc/run-game.sh`: pass its socket with `--rpc <path>`.
+Use the folder name step 4 printed. It should say what it is painting into (the studio's socket, the game's, or both: `--rpc SOCKET` names them yourself, once for each; by default it looks for `rpc-studio.sock` and `rpc-live.sock`). If it says the game is not running, your game was not started with `pc/run-game.sh`: pass its socket with `--rpc <path>`.
 
 ### 6. Connect Aseprite
 

@@ -642,6 +642,16 @@ void pc_studio_bounds_reset(void)
     studio_bounds.meshes = 0;
 }
 void pc_studio_bounds_stop(void) { studio_bounds.on = 0; }
+/* rood-studio: the box and meshes of what the app drew (the game's draws measure them as they go). */
+void pc_studio_bounds_set(const float lo[3], const float hi[3], const unsigned* meshes, const unsigned long long* keys, int count)
+{
+    memcpy(studio_bounds.lo, lo, sizeof studio_bounds.lo);
+    memcpy(studio_bounds.hi, hi, sizeof studio_bounds.hi);
+    studio_bounds.count = 100;
+    studio_bounds.meshes = count > 16 ? 16 : count;
+    for (int i = 0; i < studio_bounds.meshes; i++)
+        studio_bounds.mesh[i] = meshes[i], studio_bounds.key[i] = keys[i];
+}
 int pc_studio_bounds_get(float lo[3], float hi[3])
 {
     if (!studio_bounds.count)

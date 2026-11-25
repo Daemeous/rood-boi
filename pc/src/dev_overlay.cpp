@@ -50,6 +50,7 @@
 #include "ImGuizmo.h"
 #include "cutscene_internal.h" /* the Cutscene window, the instant replay key */
 extern "C" int pc_studio_wants_mouse(void); /* studio.cpp: a click in the studio picks a texel */
+extern "C" int pc_studio_app_active(void); /* studio.cpp: rood-studio's own screen takes the keyboard and the pointer */
 extern "C" int pc_keyboard_replay(SDL_Keycode key); /* boot_controller.c */
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: drawn by vk_overlay.cpp */
@@ -529,7 +530,7 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
             return 1;
         /* Escape or F1: open or close the editor.
          * Closing hands the camera back. */
-        if (key == SDLK_F1 || (key == SDLK_ESCAPE && !typing)) {
+        if (key == SDLK_F1 || (key == SDLK_ESCAPE && !typing && !pc_studio_app_active())) {
             if (down && !event->key.repeat) {
                 set_visible(!visible);
                 if (!visible && pc_editor_active())
@@ -557,7 +558,7 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
             }
             return 1;
         }
-        if (!visible && !cutscene::free_camera_on()) {
+        if (!visible && !cutscene::free_camera_on() && !pc_studio_app_active()) {
             // A key pressed while flying may be released after the camera was returned.
             if (!down)
                 ImGui_ImplSDL3_ProcessEvent(event);
@@ -573,7 +574,7 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
                 pc_ui_workshop_text(event->text.text);
             return 1;
         }
-        if (!visible)
+        if (!visible && !pc_studio_app_active())
             return 0;
         ImGui_ImplSDL3_ProcessEvent(event);
         return 1;

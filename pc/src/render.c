@@ -1114,6 +1114,7 @@ static int instance_palette(const draw_list* list, const list_instance* in, floa
  * palette (game units, the pose of that frame), a quad as its two triangles. Returns the triangles written, -1 when no list draws it
  * or the file cannot be written (the model painting round trip: pc/docs/Materials.md). */
 /* The newest unblended instance of `mesh` in the draw lists, with its palette at t = 1 (the pose of that frame); 0 when no list draws it. */
+static render_camera posed_camera; /* the camera of the list posed_instance found (render_mesh_reference) */
 static int posed_instance(render_mesh mesh, mesh_slot** slot_out, const list_instance** in_out, render_transform* palette)
 {
     mesh_slot* slot = lookup(mesh);
@@ -1133,6 +1134,7 @@ static int posed_instance(render_mesh mesh, mesh_slot** slot_out, const list_ins
         return 0;
     if (in->bones > 0)
         instance_palette(list, in, 1.0f, palette);
+    posed_camera = list->camera;
     *slot_out = slot, *in_out = in;
     return 1;
 }
@@ -1196,6 +1198,27 @@ int render_mesh_dump(render_mesh mesh, const char* path)
         }
     }
     return fclose(f) ? -1 : triangles;
+}
+/* The model as the newest list draws it, for parity checks against a decoder that builds the same model (rood-studio, pc/docs/plans/2026-11-24-
+ * standalone-studio-design.md): "RMR1", polygon count, bone count, the instance's override, tpage, clut and colour, the polygons (render_polygon
+ * as the renderer holds them) and the bones' palette (world transforms, the pose of that frame). Returns the polygons written, -1 when no list draws it. */
+int render_mesh_reference(render_mesh mesh, const char* path)
+{
+    mesh_slot* slot;
+    const list_instance* in;
+    render_transform palette[RENDER_MAX_BONES];
+    if (!posed_instance(mesh, &slot, &in, palette))
+        return -1;
+    FILE* f = fopen(path, "wb");
+    if (!f)
+        return -1;
+    int32_t head[8] = { 0x31524d52, slot->polygons, in->bones, in->override, in->tpage, in->clut,
+        (int32_t)(in->color[0] | in->color[1] << 8 | in->color[2] << 16), (int32_t)sizeof(render_polygon) };
+    fwrite(head, sizeof head, 1, f);
+    fwrite(slot->cpu, sizeof(render_polygon), (size_t)slot->polygons, f);
+    fwrite(palette, sizeof(render_transform), (size_t)(in->bones > 0 ? in->bones : 0), f);
+    fwrite(&posed_camera, sizeof posed_camera, 1, f);
+    return fclose(f) ? -1 : slot->polygons;
 }
 /* The same triangles as render_mesh_dump, in memory (the model studio's texel locator): up to `max`; returns how many (the whole model's
  * count is more than `max` when it is cut off: the return is then max), -1 when no list draws the mesh. Textured polygons only. */

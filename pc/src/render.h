@@ -78,6 +78,7 @@ int render_mesh_polygons(render_mesh mesh); /* -1 when the handle is stale */
  * (bits[i] for polygon i; NULL: none). Kept across render_mesh_update. */
 int render_mesh_emissive_scope(render_mesh mesh, const uint16_t* bits);
 int render_mesh_dump(render_mesh mesh, const char* path);
+int render_mesh_reference(render_mesh mesh, const char* path); /* the polygons and palette as drawn, binary (parity checks) */
 /* One triangle of a drawn model, posed (render_mesh_posed): world positions, the texture coordinates of its corners, the page and CLUT it
  * samples, and the polygon it came from (a quad: its two triangles, quad 1 and 2; 0 for a triangle). */
 typedef struct {

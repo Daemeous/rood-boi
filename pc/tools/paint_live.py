@@ -48,51 +48,84 @@ def default_socket():
     return str(played) if played.exists() else rood_rpc.DEFAULT_SOCKET
 
 
+def default_sockets():
+    """What the bridge paints into when none is named: $ROOD_RPC (one), else rood-studio's socket (pc/run-studio.sh: rpc-studio.sock) and the
+    game's (pc/run-game.sh: rpc-live.sock), each when it is there or comes up later. The strokes go to every one that is running; the texel locator
+    talks to the first that is (the studio's, else the game's own studio)."""
+    if os.environ.get("ROOD_RPC"):
+        return [os.environ["ROOD_RPC"]]
+    base = pathlib.Path(rood_rpc.ROOT) / "pc/build/boot"
+    return [str(base / "rpc-studio.sock"), str(base / "rpc-live.sock")]
+
+
 class Bridge:
     def __init__(self, folder, rpc=None, layer=None, catalog=None):
+        """`rpc`: the RPC socket(s) the maps are pushed to, a path or a list of them (rood-studio's and the game's: every one that runs gets the
+        strokes); the texel locator uses the first that is up."""
         self.folder = pathlib.Path(folder)
         self.seed = json.loads((self.folder / "seed.json").read_text())
         self.labels = {pr.safe(label): (label, rec) for label, rec in self.seed["labels"].items()}
-        self.rpc = rpc or default_socket()
+        self.rpcs = [rpc] if isinstance(rpc, str) else list(rpc) if rpc else default_sockets()
+        self.rpc = self.rpcs[0]
+        self.conns = [None] * len(self.rpcs)
         self.ns = argparse.Namespace(dir=str(self.folder), layer=layer, catalog=catalog, normal_format="auto", keep_seed=False)
-        self.game, self.sent, self.entries, self.lock = None, {}, set(), threading.Lock()
+        self.sent, self.entries, self.lock = {}, set(), threading.Lock()
         self.pick_serial = None  # the studio's pick last passed on (None: the first look only learns it)
         self.layers = {}  # label -> {channel or "material": the canvas the extension sent last}
         self.preset_stamp, self.presets = None, []
         self.reload_presets()
 
+    @property
+    def game(self):
+        """The connection the texel locator uses: the first target that is up (the studio's)."""
+        return next((c for c in self.conns if c is not None), None)
+
+    @game.setter
+    def game(self, value):  # (the first target; None drops every connection)
+        if value is None:
+            self.conns = [None] * len(self.rpcs)
+        else:
+            self.conns[0] = value
+
     def connect(self):
-        if self.game is None:
+        """Connect every target that is not; True when any is up. A target that has come up (or restarted) has none of what was sent."""
+        for i, path in enumerate(self.rpcs):
+            if self.conns[i] is None:
+                try:
+                    self.conns[i] = rood_rpc.Game(path)
+                    self.sent.clear()
+                except (OSError, rood_rpc.RpcError):
+                    self.conns[i] = None
+        return any(c is not None for c in self.conns)
+
+    def targets(self):
+        """Which targets are up, for the extension: [{rpc, up}]."""
+        return [{"rpc": path, "up": c is not None} for path, c in zip(self.rpcs, self.conns)]
+
+    def each(self, method, **params):
+        """The call on every target that is up; a target that fails is dropped (it connects again on the next stroke). True when one took it."""
+        if not self.connect():
+            return False
+        took = False
+        for i, c in enumerate(self.conns):
+            if c is None:
+                continue
             try:
-                self.game = rood_rpc.Game(self.rpc)
-                self.sent.clear()  # (a game that is new has none of what was sent)
-            except (OSError, rood_rpc.RpcError):
-                self.game = None
-        return self.game is not None
+                c.call(method, **params)
+                took = True
+            except (rood_rpc.RpcError, OSError, ValueError):
+                self.conns[i] = None
+        return took
 
     def push(self, key, obj, channel, array):
-        """The map into the game; False when the game is not there."""
-        if not self.connect():
-            return False
+        """The map into the game and the studio; False when none is there."""
         h, w = array.shape
-        try:
-            self.game.call("material", action="map_set", key=key, object=obj, channel=channel, w=w, h=h,
-                           data=base64.b64encode(np.ascontiguousarray(array).tobytes()).decode())
-        except (rood_rpc.RpcError, OSError, ValueError):
-            self.game = None  # (the game went away, or restarted: connect again on the next stroke)
-            return False
-        return True
+        return self.each("material", action="map_set", key=key, object=obj, channel=channel, w=w, h=h,
+                         data=base64.b64encode(np.ascontiguousarray(array).tobytes()).decode())
 
     def clear(self, key, obj, channel):
-        """The game's own map of the channel again (the map set in memory taken away); False when the game is not there."""
-        if not self.connect():
-            return False
-        try:
-            self.game.call("material", action="map_clear", key=key, object=obj, channel=channel)
-        except (rood_rpc.RpcError, OSError, ValueError):
-            self.game = None
-            return False
-        return True
+        """Their own map of the channel again (the map set in memory taken away); False when none is there."""
+        return self.each("material", action="map_clear", key=key, object=obj, channel=channel)
 
     def reload_presets(self):
         """The preset files again when one changed; True then."""
@@ -108,7 +141,7 @@ class Bridge:
         return [{"name": p["name"], "colour": "#%02x%02x%02x" % p["rgb"], "about": mp.about(p)} for p in self.presets]
 
     def greeting(self, note):
-        return {"ok": True, "game": self.game is not None, "note": note, "presets": self.preset_list(), **pch.greeting()}
+        return {"ok": True, "game": self.game is not None, "targets": self.targets(), "note": note, "presets": self.preset_list(), **pch.greeting()}
 
     def layers_of(self, label, rec):
         """The layer canvases the bridge knows of a material: what the extension sent, else the saved file's (first use)."""
@@ -222,15 +255,17 @@ class Bridge:
         if not at:
             return {"ok": True, "game": self.game is not None, "locate": True, "note": ""}  # (a texel outside any texture, or a sprite that is not ours)
         with self.lock:
-            if not self.connect():
+            self.connect()
+            studio = self.game
+            if studio is None:
                 return {"ok": True, "game": False, "locate": True, "note": ""}
             try:
-                got = self.game.call("studio", action="locate", key=at[0], x=at[1], y=at[2])
+                got = studio.call("studio", action="locate", key=at[0], x=at[1], y=at[2])
             except rood_rpc.RpcError as e:
                 return {"ok": True, "game": True, "locate": True, "note": f"the studio: {e}"}
             except (OSError, ValueError):
-                self.game = None
-                return {"ok": True, "game": False, "locate": True, "note": ""}
+                self.conns[self.conns.index(studio)] = None
+                return {"ok": True, "game": any(c is not None for c in self.conns), "locate": True, "note": ""}
         found = got.get("locate", {})
         return {"ok": True, "game": True, "locate": True, "triangles": found.get("triangles", 0),
                 "note": "" if found.get("triangles") else "that texel is not on the model shown"}
@@ -238,14 +273,16 @@ class Bridge:
     def picked(self):
         """The studio's newest pick as the extension's select message (a dict), when it is one not passed on yet; else None."""
         with self.lock:
-            if not self.connect():
+            self.connect()
+            studio = self.game
+            if studio is None:
                 return None
             try:
-                pick = self.game.call("studio", action="picked").get("pick") or {}
+                pick = studio.call("studio", action="picked").get("pick") or {}
             except rood_rpc.RpcError:
                 return None  # (no studio in this game)
             except (OSError, ValueError):
-                self.game = None
+                self.conns[self.conns.index(studio)] = None
                 return None
         serial = pick.get("serial", 0)
         first = self.pick_serial is None
@@ -332,10 +369,14 @@ def serve(bridge, port, log=lambda text: print(text, flush=True)):
 
 
 def live(args):
-    bridge = Bridge(args.dir, rpc=args.rpc, layer=args.layer, catalog=args.catalog)
+    bridge = Bridge(args.dir, rpc=args.rpc or None, layer=args.layer, catalog=args.catalog)
     server = serve(bridge, args.port)
-    print(f"live: listening on ws://127.0.0.1:{args.port} for the Aseprite extension; "
-          f"game {'reachable' if bridge.connect() else 'not running (strokes are kept for when it is; saved files still import)'}", flush=True)
+    bridge.connect()
+    up = [t["rpc"] for t in bridge.targets() if t["up"]]
+    down = [t["rpc"] for t in bridge.targets() if not t["up"]]
+    now = f"painting into {', '.join(up)}" if up else "no game or studio running (strokes are kept for when one is; saved files still import)"
+    print(f"live: listening on ws://127.0.0.1:{args.port} for the Aseprite extension; {now}"
+          + (f"; looking for {', '.join(down)} as they start" if down else ""), flush=True)
     stop = threading.Event()
     if not args.no_watch:
         threading.Thread(target=pr.watch_package, args=(args, stop), daemon=True).start()

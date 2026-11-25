@@ -603,6 +603,30 @@ with tempfile.TemporaryDirectory() as d:
     check(("aaaaaaaaaa", "g100", "metal") not in ncleared and npushed[-1][2] == "metal", "(metal, which this texture's game has a map for, is pushed back as before)")
     os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")
 
+    # ---------------------------------------------------------------- several targets (rood-studio and a game beside it)
+    class Target:
+        def __init__(self, fail=False):
+            self.calls, self.fail = [], fail
+
+        def call(self, method, **kw):
+            if self.fail:
+                raise OSError("gone")
+            self.calls.append((method, kw.get("action"), kw.get("channel"), kw.get("key")))
+            return {"pick": {"serial": 0}} if kw.get("action") == "picked" else {"locate": {"triangles": 1}}
+    multi_dir = d / "multi_pkg"
+    multi_dir.mkdir(exist_ok=True)
+    (multi_dir / "seed.json").write_text(json.dumps({"labels": {}}))
+    mb = paint_live.Bridge(multi_dir, rpc=["/nonexistent/a.sock", "/nonexistent/b.sock"], layer=str(d / "layer-multi"), catalog=str(d / "cat-multi.json"))
+    first, second = Target(), Target()
+    mb.conns = [first, second]
+    check(mb.push("k", "o", "metal", np.zeros((2, 2), np.uint8)) and len(first.calls) == 1 and first.calls == second.calls,
+          "a map is pushed to every target that is up")
+    first.fail = True
+    check(mb.push("k", "o", "metal", np.zeros((2, 2), np.uint8)) and mb.conns[0] is None and len(second.calls) == 2,
+          "a target that went away is dropped and the other still takes the stroke")
+    check(mb.game is second and [t["up"] for t in mb.targets()] == [False, True], "the locator uses the first target that is up")
+    mb.conns = [None, None]
+    check(not mb.push("k", "o", "metal", np.zeros((2, 2), np.uint8)) and not mb.clear("k", "o", "metal"), "with no target up a stroke is not taken (the saved file still imports)")
     # ---------------------------------------------------------------- the texel locator: Aseprite <-> the studio, with a game that is faked
     class StudioGame:
         """The studio's two actions the bridge uses: locate (recorded) and picked (what the test has the studio pick)."""
@@ -722,6 +746,11 @@ s:saveAs("{d / "saved.aseprite"}")
 saved_rpc = os.environ.pop("ROOD_RPC", None)
 try:
     check(paint_live.default_socket() in (str(pr.ROOT / "pc/build/boot/rpc-live.sock"), paint_live.rood_rpc.DEFAULT_SOCKET), "the bridge's default socket is the played game's (rpc-live.sock) when there is one")
+    os.environ["ROOD_RPC"] = "/x/y.sock"
+    check(paint_live.default_sockets() == ["/x/y.sock"], "$ROOD_RPC names the one socket")
+    os.environ.pop("ROOD_RPC")
+    check(len(paint_live.default_sockets()) == 2 and paint_live.default_sockets()[0].endswith("rpc-studio.sock")
+          and paint_live.default_sockets()[1].endswith("rpc-live.sock"), "by default the studio's socket first, then the game's")
     os.environ["ROOD_RPC"] = "/x/y.sock"
     check(paint_live.default_socket() == "/x/y.sock", "$ROOD_RPC names the socket first")
 finally:

@@ -462,6 +462,7 @@ def export_package(args):
         f"room-{args.zone}-{args.room}" if args.zone is not None else args.target)
     out.mkdir(parents=True, exist_ok=True)
     live = getattr(args, "game", None)
+    was_paused = True
     if live:  # the running game (its studio's model, or the room it is in) instead of one started here
         import rood_rpc
         game = rood_rpc.Game(live)
@@ -472,6 +473,7 @@ def export_package(args):
     try:
         if args.zone is not None:
             rb.goto(game, args.zone, args.room, enemies=args.target == "model")  # (a model: the room's enemies are there to export)
+        was_paused = bool(game.status().get("paused")) if live else True
         game.run(30)
         model = args.model
         if args.target == "model":
@@ -524,6 +526,8 @@ def export_package(args):
     finally:
         if not live:
             material_rollout.kill(game)
+        elif not was_paused:
+            game.pause(False)  # (a game that was running runs on: the studio is not left stopped at the frame it was exported at)
     if args.target == "model":
         # a model's textures are boxes of a few pages: one atlas per page and palette (the painter paints the page, import cuts the boxes)
         labels, split, slices = [], {}, {}
@@ -1174,7 +1178,7 @@ def main():
         w.add_argument("--debounce", type=float, default=0.3, help="seconds a file must be still before it is imported")
         if name == "live":
             w.add_argument("--port", type=int, default=47480, help="the WebSocket port on localhost (the extension's default)")
-            w.add_argument("--rpc", help="the game's RPC socket (default: ROOD_RPC, else pc/build/boot/rpc-live.sock, the one pc/run-game.sh opens)")
+            w.add_argument("--rpc", action="append", metavar="SOCKET", help="an RPC socket to paint into, repeatable: rood-studio's and the game's (default: ROOD_RPC, else rpc-studio.sock (pc/run-studio.sh) and rpc-live.sock (pc/run-game.sh) in pc/build/boot, each when it runs); the texel locator talks to the first that is up")
             w.add_argument("--no-watch", action="store_true", help="do not also import saved files")
     args = parser.parse_args()
     if args.command == "watch":

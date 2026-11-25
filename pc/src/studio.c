@@ -18,6 +18,7 @@
 #include "../../pc/src/game/BATTLE/BATTLE.PRG/5BF94.h"
 #include "../../pc/src/game/SLUS_010.40/main.h"
 #include "studio.h"
+#include "studio_stage.h"
 
 /* The record's first member and the loader's weapon-slot byte are still named by their offsets in the headers (pc/names; the
  * PS1-ties lint counts those names): reached here by offsetof. */
@@ -42,121 +43,31 @@ int pc_studio_room_ready(void)
     return pc_room_loaded() && pc_room_geometry(&length) && length >= 4096;
 }
 
-/* ---- the stage ---- */
+/* ---- the stage ---- (studio_stage.c builds the block; here it goes over the loaded room's) */
 
-static void put32(unsigned char* b, unsigned at, unsigned v) { memcpy(b + at, &v, 4); }
-static int snap8(double v) { return (int)(floor(v / 8.0 + 0.5)) * 8; }
-
-/* The stage's facets are small and none is thinner than the grid the game keeps its facets on: a room facet's corners are a
- * position and steps of 8 units from it, so a ring whose neighbours are a few units apart collapses to nothing or turns
- * inside out (and is not drawn), and the renderer drops a facet that is large on the screen it is seen from. The rings of the
- * profile are therefore each given the fewest facets (a power of two, so each ring has twice or as many as the one inside it)
- * that keep them no wider than `facet` units, and a ring that has twice the facets of the one inside it is joined to it with
- * three triangles for each of the inner ring's edges. */
-typedef struct {
-    int rings, segs[160];
-    double radius[160], height[160];
-} profile_t;
-
-static int ring_segments(double radius, double facet, int least)
+static pc_stage_cfg stage_cfg_of(const pc_studio_scene_cfg* c)
 {
-    int n = least;
-    while (n < 512 && 6.2831853 * radius / n > facet)
-        n *= 2;
-    return n;
+    pc_stage_cfg k;
+    k.radius = c->radius, k.fillet = c->fillet, k.height = c->height, k.grey = c->grey, k.facet = c->facet;
+    k.floor_step = c->floor_step, k.wall_step = c->wall_step;
+    return k;
 }
-
-static void stage_point(const profile_t* p, int ring, int j, short out[3])
-{
-    double a = 6.2831853 * (j % p->segs[ring]) / p->segs[ring];
-    out[0] = (short)snap8(p->radius[ring] * cos(a));
-    out[2] = (short)snap8(p->radius[ring] * sin(a));
-    out[1] = (short)-snap8(p->height[ring]);
-}
-
-/* One facet at `q`: the first corner, the steps to the others (8 units each), the colours (a triangle's record is 32 bytes,
- * a quad's 40). */
-static unsigned char* put_facet(unsigned char* q, const short v[4][3], int quad, unsigned colour)
-{
-    memcpy(q, v[0], 6);
-    for (int k = 1; k < (quad ? 4 : 3); k++)
-        for (int d = 0; d < 3; d++)
-            ((signed char*)q)[(quad && k == 3 ? 32 : 6 + (k - 1) * 3) + d] = (signed char)((v[k][d] - v[0][d]) / 8);
-    for (int k = 0; k < (quad ? 4 : 3); k++)
-        put32(q, (unsigned)(quad && k == 3 ? 36 : 12 + k * 4), colour | (k == 0 ? (quad ? 0x38u : 0x30u) << 24 : 0));
-    return q + (quad ? 40 : 32);
-}
-
-/* No stage: a block with one facet that faces away from every view (nothing is drawn, the scene still has a room). */
 static unsigned build_hidden(float cx, float fy, float cz, char* why, int why_size, char* info, int info_size)
 {
     unsigned length = 0;
     unsigned char* block = (unsigned char*)pc_room_geometry(&length);
-    unsigned geom_at = 4 + 0x40, need = geom_at + 8 + 32;
-    if (need > length) {
-        snprintf(why, (unsigned long)why_size, "the room's block is too small for an empty stage");
-        return 0;
-    }
-    memset(block, 0, need);
-    put32(block, 0, 1);
-    unsigned char* g = block + 4;
-    put32(g, 0, 0xff);
-    put32(g, 4, (unsigned)(int)cx), put32(g, 8, (unsigned)(int)fy), put32(g, 12, (unsigned)(int)cz);
-    put32(g, 0x1c, geom_at);
-    put32(block + geom_at, 0, 1), put32(block + geom_at, 4, 0);
-    short v[4][3] = { { 0, 3000, 0 }, { 0, 3000, 8 }, { 8, 3000, 0 }, { 0, 0, 0 } }; /* (below the floor, wound to face down) */
-    put_facet(block + geom_at + 8, v, 0, 0x606060);
-    vs_battle_roomData.header.textureEffectsSectionLen = 0;
-    snprintf(info, (unsigned long)info_size, "no stage: a solid backdrop");
-    return need;
+    unsigned used = pc_stage_build_hidden(cx, fy, cz, block, length, why, why_size, info, info_size);
+    if (used)
+        vs_battle_roomData.header.textureEffectsSectionLen = 0;
+    return used;
 }
-
 static unsigned build_stage(const pc_studio_scene_cfg* c, float cx, float fy, float cz, char* why, int why_size, char* info, int info_size)
 {
-    unsigned length = 0;
+    unsigned length = 0, need = 0;
     unsigned char* block = (unsigned char*)pc_room_geometry(&length);
-    double radius = c->radius, fillet = c->fillet, height = c->height;
-    double facet = c->facet < 16 ? 16 : c->facet;
-    if (radius < 100 || fillet < 1 || height < fillet) {
-        snprintf(why, (unsigned long)why_size, "stage: radius >= 100, 1 <= fillet <= height");
-        return 0;
-    }
-    /* the profile: the floor (rings every `floor_step`), the fillet's quarter circle, the wall (rings every `wall_step`) */
-    static profile_t p;
-    p.rings = 0;
-    int floor_steps = (int)ceil(radius / (c->floor_step > 20 ? c->floor_step : 450.0));
-    if (floor_steps > 60)
-        floor_steps = 60;
-    for (int i = 0; i <= floor_steps; i++)
-        p.radius[p.rings] = radius * i / floor_steps, p.height[p.rings++] = 0;
-    for (int i = 1; i <= 8; i++) {
-        double a = 1.5707963 * i / 8;
-        p.radius[p.rings] = radius + fillet * sin(a), p.height[p.rings++] = fillet * (1 - cos(a));
-    }
-    int wall_steps = (int)ceil((height - fillet) / (c->wall_step > 20 ? c->wall_step : 800.0));
-    if (wall_steps > 60)
-        wall_steps = 60;
-    for (int i = 1; i <= wall_steps; i++)
-        p.radius[p.rings] = radius + fillet, p.height[p.rings++] = fillet + (height - fillet) * i / wall_steps;
-    p.segs[0] = 1;
-    for (int i = 1; i < p.rings; i++) {
-        int n = ring_segments(p.radius[i], facet, 8);
-        int inside = i > 1 ? p.segs[i - 1] : 8;
-        if (n > inside * 2)
-            n = inside * 2; /* (a ring is at most twice as fine as the one inside it) */
-        if (n < inside)
-            n = inside;
-        p.segs[i] = n;
-    }
-    unsigned tris = (unsigned)p.segs[1], quads = 0;
-    for (int i = 1; i + 1 < p.rings; i++) {
-        if (p.segs[i + 1] == p.segs[i])
-            quads += (unsigned)p.segs[i];
-        else
-            tris += 3u * (unsigned)p.segs[i];
-    }
-    unsigned geom_at = 4 + 0x40, need = geom_at + 8 + tris * 32 + quads * 40;
-    if (need > length) { /* the room's own block is too small: a block of the heap's (put back with the rest of the state) */
+    pc_stage_cfg k = stage_cfg_of(c);
+    unsigned used = pc_stage_build(&k, cx, fy, cz, block, length, &need, why, why_size, info, info_size);
+    if (!used && need > length) { /* the room's own block is too small: a block of the heap's (put back with the rest of the state) */
         unsigned char* big = vs_main_allocHeap(need);
         if (!big) {
             snprintf(why, (unsigned long)why_size, "stage needs %u bytes, the room's block is %u and the heap has no more", need, length);
@@ -164,57 +75,11 @@ static unsigned build_stage(const pc_studio_scene_cfg* c, float cx, float fy, fl
         }
         vs_battle_roomData.geometrySection = (int*)big;
         vs_battle_roomData.header.geometrySectionLen = need;
-        block = big, length = need;
+        used = pc_stage_build(&k, cx, fy, cz, big, need, &need, why, why_size, info, info_size);
     }
-    snprintf(info, (unsigned long)info_size, "stage %u of %u bytes: %u triangles, %u quads, %d rings", need, length, tris, quads, p.rings);
-    memset(block, 0, need);
-    put32(block, 0, 1); /* one geometry group */
-    unsigned char* g = block + 4;
-    put32(g, 0, 0xff); /* flags: every facing bit, not hidden */
-    put32(g, 4, (unsigned)(int)cx);
-    put32(g, 8, (unsigned)(int)fy);
-    put32(g, 12, (unsigned)(int)cz);
-    put32(g, 0x1c, geom_at);
-    unsigned char* geo = block + geom_at;
-    put32(geo, 0, tris), put32(geo, 4, quads);
-    unsigned char* poly = geo + 8;
-    unsigned grey = (unsigned)(c->grey < 0 ? 0 : c->grey > 255 ? 255 : c->grey);
-    unsigned col = grey | grey << 8 | grey << 16;
-    short v[4][3];
-    /* the triangles: the fan about the centre, then the joins between rings of different fineness */
-    memset(v[0], 0, sizeof v[0]);
-    for (int j = 0; j < p.segs[1]; j++) {
-        stage_point(&p, 1, j + 1, v[1]);
-        stage_point(&p, 1, j, v[2]);
-        poly = put_facet(poly, v, 0, col);
-    }
-    for (int i = 1; i + 1 < p.rings; i++) {
-        if (p.segs[i + 1] == p.segs[i])
-            continue;
-        for (int j = 0; j < p.segs[i]; j++) {
-            short a0[3], a1[3], b0[3], b1[3], b2[3];
-            stage_point(&p, i, j, a0), stage_point(&p, i, j + 1, a1);
-            stage_point(&p, i + 1, 2 * j, b0), stage_point(&p, i + 1, 2 * j + 1, b1), stage_point(&p, i + 1, 2 * j + 2, b2);
-            memcpy(v[0], a0, 6), memcpy(v[1], b1, 6), memcpy(v[2], b0, 6);
-            poly = put_facet(poly, v, 0, col);
-            memcpy(v[0], a0, 6), memcpy(v[1], a1, 6), memcpy(v[2], b1, 6);
-            poly = put_facet(poly, v, 0, col);
-            memcpy(v[0], a1, 6), memcpy(v[1], b2, 6), memcpy(v[2], b1, 6);
-            poly = put_facet(poly, v, 0, col);
-        }
-    }
-    /* the quads between rings of the same fineness */
-    for (int i = 1; i + 1 < p.rings; i++) {
-        if (p.segs[i + 1] != p.segs[i])
-            continue;
-        for (int j = 0; j < p.segs[i]; j++) {
-            stage_point(&p, i, j, v[0]), stage_point(&p, i, j + 1, v[1]);
-            stage_point(&p, i + 1, j, v[2]), stage_point(&p, i + 1, j + 1, v[3]);
-            poly = put_facet(poly, v, 1, col);
-        }
-    }
-    vs_battle_roomData.header.textureEffectsSectionLen = 0;
-    return need;
+    if (used)
+        vs_battle_roomData.header.textureEffectsSectionLen = 0;
+    return used;
 }
 
 /* ---- the model ---- */
@@ -410,7 +275,23 @@ int pc_studio_scene(const pc_studio_scene_cfg* c, pc_studio_scene_out* out)
     out->bones = BODY(a)->nBones;
     /* shown, animated, its weapon and shield drawn (as the loader leaves an actor that a script has yet to show) */
     vs_actors_setActorDisplayFlags(slot, 1 | 2 | 4 | 0x800 | 0x1000);
-    if (c->animation >= 0)
-        vs_actors_playActorAnimation(slot, c->animation, 0, 0);
+    if (c->animation >= 0) {
+        if (c->animation_frame > 0)
+            vs_actors_playActorAnimationAtFrame(slot, c->animation, 0, c->animation_frame);
+        else
+            vs_actors_playActorAnimation(slot, c->animation, 0, 0);
+    }
+    out->animation = a->animationId;
+    out->animation_frames = *(short*)((char*)a + __builtin_offsetof(D_800F4538_t, unk5BC)); /* (still named by its offset: pc/names) */
     return 0;
+}
+
+/* rood-studio (rood_studio.c) gives the scene capture, ray tracing and the probes a room: this block, as the loaded room's geometry (the same
+ * words the in-game studio writes over a room's). Not a room's loading: nothing else of a room is set. */
+void pc_studio_app_room(unsigned char* block, unsigned length)
+{
+    *((char*)&vs_battle_roomData + __builtin_offsetof(_mpdRoomSection, unk0)) = 1; /* (the room's first byte, still named by its offset: pc/names) */
+    vs_battle_roomData.geometrySection = (int*)block;
+    vs_battle_roomData.header.geometrySectionLen = length;
+    vs_battle_roomData.header.textureEffectsSectionLen = 0;
 }

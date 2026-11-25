@@ -51,8 +51,10 @@ void pc_studio_bounds_reset(void) __attribute__((weak));
 void pc_studio_bounds_stop(void) __attribute__((weak));
 int pc_studio_bounds_get(float lo[3], float hi[3]) __attribute__((weak));
 int pc_studio_meshes(unsigned* mesh, unsigned long long* key, int max) __attribute__((weak));
+void pc_studio_bounds_set(const float lo[3], const float hi[3], const unsigned* meshes, const unsigned long long* keys, int count) __attribute__((weak));
 int pc_lights_tools_view(pc_overlay_view* out, pc_overlay_pick* pick) __attribute__((weak));
 int render_mesh_posed(render_mesh mesh, render_posed_triangle* out, int max) __attribute__((weak));
+int render_mesh_reference(render_mesh mesh, const char* path) __attribute__((weak));
 }
 
 namespace {
@@ -303,11 +305,25 @@ struct Camera {
     float target[3] = { 0, 0, 0 };   // world
     float distance = 600;            // the fitting distance, world units (from the model's box)
 };
+// The sequence shown (rood-studio): -1 the game's own choice (the weapon-drawn idle, else the model's own), else an animation number; the time in frames.
+struct AnimationState {
+    int id = -1;
+    float time = 1, speed = 1;
+    bool playing = true;
+    std::vector<int> ids; // the model's animations (the app reports them)
+    int frames = 1, shown = 0;
+    double last = 0;
+} animation;
+bool app_ui = true;            // rood-studio's own screen (the panels) is drawn
+bool app_mode;                 // rood-studio (rood_studio.c): no game, no photo hold; the app draws and asks pc_studio_app_frame each frame
+pc_studio_scene_cfg app_scene; // the scene as studio_render built it, for the app
+int app_serial;                // grows with every change of model
 bool dirty; // a change asked for while a render was running (photo.cpp drops such a request): asked again when it lands
 void request()
 {
     dirty = true;
-    ::pc_photo_redraw();
+    if (!app_mode)
+        ::pc_photo_redraw();
 }
 float model_angle, light_angle; // the turntable's, degrees in [0, 360)
 bool turn_was_running;
@@ -327,7 +343,7 @@ int frame_attempts;
 float centre[3];      // the stage's centre (the player's feet)
 bool have_centre;
 std::string scene_message, scene_info;
-int scene_slot = -1;
+int scene_slot = -1, scene_animation = -1, scene_animation_frames;
 unsigned scenes;      // renders that built a scene
 // What entering changed that is not in the guest's memory (given back on leaving).
 int saved_fog_global, saved_occlusion, saved_interpolate, saved_holds;
@@ -554,6 +570,7 @@ const std::vector<emissive::UseInfo>& capture_uses()
     }
     return capture.uses;
 }
+std::string reference_path; // RPC dump_model: written by the next render that lands
 // The triangles of the model and the view of the picture that has just landed.
 void capture_take(bool clean)
 {
@@ -565,6 +582,12 @@ void capture_take(bool clean)
         return;
     unsigned meshes[16];
     capture.meshes = pc_studio_meshes ? pc_studio_meshes(meshes, capture.keys, 16) : 0;
+    if (!reference_path.empty()) { // RPC dump_model: the models as drawn (render_mesh_reference), one file per mesh: <path>.<k>
+        for (int m = 0; m < capture.meshes; m++)
+            if (render_mesh_reference)
+                render_mesh_reference(meshes[m], (reference_path + "." + std::to_string(m)).c_str());
+        reference_path.clear();
+    }
     capture.tris.clear();
     static std::vector<render_posed_triangle> buffer;
     buffer.resize(40000);
@@ -727,9 +750,9 @@ void studio_render()
     again = false;
     advance_turntable();
     apply_look();
-    if (!pc_studio_scene)
+    if (!pc_studio_scene && !app_mode)
         return;
-    if (!glows_kept) { // the room's glows are game-time state: kept while the stage replaces its scene, given back on leaving
+    if (!glows_kept && !app_mode) { // the room's glows are game-time state: kept while the stage replaces its scene, given back on leaving
         pc_glows_keep();
         glows_kept = true;
     }
@@ -756,6 +779,7 @@ void studio_render()
     }
     c.equipment = (int)num("model.equipment", 1);
     c.animation = (int)num("model.animation", 1);
+    c.animation_frame = (int)num("model.animation_frame", 0);
     c.facing = (int)lroundf(num("model.facing", 0) + model_angle * 4096.0f / 360.0f) & 0xfff; // (the turntable turns the model)
     c.model_id = (int)num("model.loader_id", 200);
     if (current) {
@@ -773,11 +797,18 @@ void studio_render()
         }
     }
     pc_studio_scene_out out;
-    int status = pc_studio_scene(&c, &out);
+    int status = 0;
+    if (app_mode) {
+        memset(&out, 0, sizeof out);
+        out.slot = out.weapon_slot = -1;
+        app_scene = c;
+    } else
+        status = pc_studio_scene(&c, &out);
     scene_message = out.message;
     scene_info = out.info;
     (void)status;
     scene_slot = out.slot;
+    scene_animation = out.animation, scene_animation_frames = out.animation_frames;
     pc_studio_hide_bodies = (c.kind == PC_STUDIO_WEP && out.slot >= 0 ? 1 << out.slot : 0) | 0x30000;
     memcpy(centre, out.position, sizeof centre);
     have_centre = true;
@@ -837,7 +868,7 @@ void studio_idle()
 std::string leave();
 std::string enter()
 {
-    if (entered)
+    if (entered || app_mode)
         return "";
     if (leaving) { // still holding the game from the last visit: this one goes on from there
         leaving = false;
@@ -870,7 +901,7 @@ std::string enter()
 }
 std::string leave()
 {
-    if (!entered)
+    if (!entered || app_mode)
         return "";
     entered = false;
     pc_studio_hide_bodies = 0;
@@ -922,6 +953,8 @@ std::string summon(const std::string& kind, int id)
     base_data = std::move(base);
     base_id = shared;
     current = item;
+    ++app_serial;
+    animation.id = -1, animation.time = 1, animation.ids.clear(), animation.frames = 1;
     file_data = std::move(data), rig_data = std::move(rig);
     if (pc_studio_bounds_reset)
         pc_studio_bounds_reset();
@@ -935,6 +968,7 @@ std::string summon(const std::string& kind, int id)
 void clear()
 {
     current = nullptr;
+    ++app_serial;
     file_data.clear(), rig_data.clear(), base_data.clear();
     base_id = -1;
     pc_studio_hide_bodies = 0;
@@ -1029,7 +1063,14 @@ std::string state_json()
             + "," + jnum(hi[2]) + "]}";
     j += ",\"turntable\":{\"model_angle\":" + jnum(model_angle) + ",\"light_angle\":" + jnum(light_angle) + ",\"running\":";
     j += turntable_running() ? "true}" : "false}";
-    j += ",\"slot\":" + std::to_string(scene_slot);
+    if (app_mode) {
+        j += ",\"sequence\":{\"shown\":" + std::to_string(animation.shown) + ",\"chosen\":" + std::to_string(animation.id) + ",\"frames\":"
+            + std::to_string(animation.frames) + ",\"time\":" + jnum(animation.time) + ",\"playing\":" + (animation.playing ? "true" : "false") + ",\"ids\":[";
+        for (size_t i = 0; i < animation.ids.size(); i++)
+            j += (i ? "," : "") + std::to_string(animation.ids[i]);
+        j += "]}";
+    }
+    j += ",\"slot\":" + std::to_string(scene_slot) + ",\"animation\":" + std::to_string(scene_animation) + ",\"animation_frames\":" + std::to_string(scene_animation_frames);
     j += ",\"message\":" + jstr(scene_message);
     j += ",\"info\":" + jstr(scene_info);
     j += ",\"leaving\":";
@@ -1062,13 +1103,19 @@ std::string state_json()
 // ---------------------------------------------------------------- the locator's picture and the cursor
 
 // The picture takes clicks (dev_overlay.cpp hands them to ImGui when the editor is hidden): the studio is open and picks.
+extern "C" int pc_studio_app_active(void) { return app_mode; }
 extern "C" int pc_studio_wants_mouse(void)
 {
+    if (app_mode)
+        return 1; // (rood-studio's own screen: the panels and the picture take the pointer)
     const Json* m = at("locate.pick_on");
     return entered && capture.valid && !(m && m->type == Json::String && m->string == "off");
 }
+static void app_screen();
 extern "C" void pc_studio_overlay(void)
 {
+    if (app_mode && app_ui)
+        app_screen();
     if (!entered || !capture.valid || !capture.view.valid)
         return;
     ImGuiIO& io = ImGui::GetIO();
@@ -1142,54 +1189,10 @@ bool rows(Json& node, const std::string& path, int depth)
 }
 }
 
-extern "C" void pc_studio_window(void)
+
+// The two halves of the Studio window, shared by it (the editor's) and by rood-studio's own screen (pc_studio_app_screen).
+static void controls_body()
 {
-    if (!pc_studio_open)
-        return;
-    rood_shell::dock_tool_window("Studio");
-    wl = WindowLayout();
-    if (!ImGui::Begin("Studio", &pc_studio_open)) {
-        ImGui::End();
-        return;
-    }
-    auto item_rect = [](float r[4]) {
-        ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
-        r[0] = a.x, r[1] = a.y, r[2] = b.x - a.x, r[3] = b.y - a.y;
-    };
-    wl.drawn = true;
-    wl.window[0] = ImGui::GetWindowPos().x, wl.window[1] = ImGui::GetWindowPos().y;
-    wl.window[2] = ImGui::GetWindowSize().x, wl.window[3] = ImGui::GetWindowSize().y;
-    // The state first, always in sight: in the studio (and the way out) or not. Below it two columns, each scrolling on its own
-    // (the window is docked short and wide): the controls left, the catalog right.
-    if (entered) {
-        ImGui::TextColored(ImVec4(0.45f, 0.9f, 0.5f, 1), "In the studio");
-        ImGui::SameLine();
-        bool left = ImGui::Button("Leave");
-        item_rect(wl.leave);
-        wl.leave_shown = true, wl.leave_visible = ImGui::IsItemVisible();
-        if (left)
-            leave();
-        ImGui::SameLine();
-        ImGui::TextDisabled("the game is held; leaving gives it back exactly");
-    } else {
-        ImGui::TextDisabled("Not in the studio: the game is running");
-        ImGui::SameLine();
-        bool go = ImGui::Button("Enter the studio");
-        item_rect(wl.leave);
-        wl.leave_visible = ImGui::IsItemVisible();
-        if (go) {
-            std::string why = enter();
-            if (!why.empty())
-                scene_message = why;
-        }
-        if (!scene_message.empty())
-            ImGui::TextWrapped("%s", scene_message.c_str());
-        ImGui::SameLine();
-        ImGui::TextDisabled("(or pick a model)");
-    }
-    wl.status[0] = wl.window[0], wl.status[1] = ImGui::GetCursorScreenPos().y;
-    const float column = fmaxf(ImGui::GetContentRegionAvail().x * num("window.controls_share", 0.55f), 260.0f);
-    ImGui::BeginChild("##controls", ImVec2(column, 0), ImGuiChildFlags_Borders);
     if (!entered) {
         ImGui::TextDisabled("Holds the game and shows its models on a neutral stage.");
     } else {
@@ -1251,6 +1254,25 @@ extern "C" void pc_studio_window(void)
             put_camera();
             request();
         }
+        if (app_mode && !animation.ids.empty()) { // the sequence: which, where in it, running
+            ImGui::Separator();
+            std::string preview = animation.id < 0 ? "auto (" + std::to_string(animation.shown) + ")" : std::to_string(animation.id);
+            if (ImGui::BeginCombo("Animation", preview.c_str())) {
+                if (ImGui::Selectable("auto", animation.id < 0))
+                    animation.id = -1, animation.time = 1;
+                for (int id : animation.ids)
+                    if (ImGui::Selectable(std::to_string(id).c_str(), animation.id == id))
+                        animation.id = id, animation.time = 1;
+                ImGui::EndCombo();
+            }
+            ImGui::Checkbox("Play", &animation.playing);
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+            ImGui::SliderFloat("Speed", &animation.speed, 0.1f, 4, "%.1f x");
+            float t = animation.time;
+            if (ImGui::SliderFloat("Frame", &t, 1, (float)animation.frames + 0.999f, "%.0f"))
+                animation.time = t, animation.playing = false;
+        }
         ImGui::Separator();
         bool changed = false;
         if (ImGui::CollapsingHeader("Stage, camera and look values")) {
@@ -1273,24 +1295,32 @@ extern "C" void pc_studio_window(void)
             model_angle = light_angle = 0;
             changed = true;
         }
-        ImGui::SameLine();
+        // (the backdrop's buttons wrap to the window's width)
+        auto wrap = [](const std::string& label) {
+            const ImGuiStyle& st = ImGui::GetStyle();
+            float w = ImGui::CalcTextSize(label.c_str()).x + st.FramePadding.x * 2 + st.ItemSpacing.x;
+            if (ImGui::GetCursorPosX() > st.WindowPadding.x + 1 && ImGui::GetContentRegionAvail().x < w)
+                ImGui::NewLine();
+        };
+        ImGui::TextDisabled("Backdrop");
         for (const char* preset : { "black", "grey", "white" }) {
-            if (ImGui::SmallButton((std::string("Backdrop ") + preset).c_str())) {
+            std::string label = std::string("Backdrop ") + preset;
+            wrap(label);
+            if (ImGui::SmallButton(label.c_str())) {
                 if (const Json* c = at(std::string("backdrop.presets.") + preset))
                     set_at("backdrop.color", *c), set_at("backdrop.mode", Json::str("solid")), changed = true;
             }
             ImGui::SameLine();
         }
+        wrap("Backdrop: stage");
         if (ImGui::SmallButton("Backdrop: stage"))
             set_at("backdrop.mode", Json::str("stage")), changed = true;
         if (changed)
             request();
     }
-    ImGui::EndChild();
-    item_rect(wl.controls);
-    ImGui::SameLine();
-    // the catalog
-    ImGui::BeginChild("##catalog", ImVec2(0, 0), ImGuiChildFlags_Borders);
+}
+static void catalog_body()
+{
     build_items();
     static char filter[64];
     static int kind = 0;
@@ -1328,6 +1358,68 @@ extern "C" void pc_studio_window(void)
         }
     }
     ImGui::EndChild();
+}
+
+extern "C" void pc_studio_window(void)
+{
+    if (!pc_studio_open)
+        return;
+    rood_shell::dock_tool_window("Studio");
+    wl = WindowLayout();
+    if (!ImGui::Begin("Studio", &pc_studio_open)) {
+        ImGui::End();
+        return;
+    }
+    auto item_rect = [](float r[4]) {
+        ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+        r[0] = a.x, r[1] = a.y, r[2] = b.x - a.x, r[3] = b.y - a.y;
+    };
+    wl.drawn = true;
+    wl.window[0] = ImGui::GetWindowPos().x, wl.window[1] = ImGui::GetWindowPos().y;
+    wl.window[2] = ImGui::GetWindowSize().x, wl.window[3] = ImGui::GetWindowSize().y;
+    // The state first, always in sight: in the studio (and the way out) or not. Below it two columns, each scrolling on its own
+    // (the window is docked short and wide): the controls left, the catalog right.
+    if (app_mode) {
+        ImGui::TextColored(ImVec4(0.45f, 0.9f, 0.5f, 1), "rood-studio");
+        ImGui::SameLine();
+        ImGui::TextDisabled("pick a model; no game is running");
+        wl.leave_shown = false;
+    } else if (entered) {
+        ImGui::TextColored(ImVec4(0.45f, 0.9f, 0.5f, 1), "In the studio");
+        ImGui::SameLine();
+        bool left = ImGui::Button("Leave");
+        item_rect(wl.leave);
+        wl.leave_shown = true, wl.leave_visible = ImGui::IsItemVisible();
+        if (left)
+            leave();
+        ImGui::SameLine();
+        ImGui::TextDisabled("the game is held; leaving gives it back exactly");
+    } else {
+        ImGui::TextDisabled("Not in the studio: the game is running");
+        ImGui::SameLine();
+        bool go = ImGui::Button("Enter the studio");
+        item_rect(wl.leave);
+        wl.leave_visible = ImGui::IsItemVisible();
+        if (go) {
+            std::string why = enter();
+            if (!why.empty())
+                scene_message = why;
+        }
+        if (!scene_message.empty())
+            ImGui::TextWrapped("%s", scene_message.c_str());
+        ImGui::SameLine();
+        ImGui::TextDisabled("(or pick a model)");
+    }
+    wl.status[0] = wl.window[0], wl.status[1] = ImGui::GetCursorScreenPos().y;
+    const float column = fmaxf(ImGui::GetContentRegionAvail().x * num("window.controls_share", 0.55f), 260.0f);
+    ImGui::BeginChild("##controls", ImVec2(column, 0), ImGuiChildFlags_Borders);
+    controls_body();
+    ImGui::EndChild();
+    item_rect(wl.controls);
+    ImGui::SameLine();
+    // the catalog
+    ImGui::BeginChild("##catalog", ImVec2(0, 0), ImGuiChildFlags_Borders);
+    catalog_body();
     ImGui::EndChild();
     item_rect(wl.catalog);
     wl.window_scrolls = ImGui::GetScrollMaxY() > 0;
@@ -1432,6 +1524,43 @@ extern "C" int pc_studio_rpc(const char* params_text, char* out, int size)
             light_angle = wrap360(v);
         if (entered)
             request();
+    } else if (action == "live") {
+        // live {kind, id}: for tests: the model built once in the game as it runs (not held), by the same scene the renders build; the game's own frames then
+        // play it (live_dump writes what the renderer draws of it, frame by frame)
+        if (!text("kind").empty()) {
+            float id = -1;
+            number("id", &id);
+            why = summon(text("kind"), (int)id);
+        }
+        if (why.empty()) {
+            bool was = entered;
+            entered = true;
+            studio_render();
+            entered = was;
+            dirty = false;
+        }
+    } else if (action == "live_dump") {
+        // live_dump {path}: the meshes drawn since the last live build, as dump_model writes them (<path>.<k>), now
+        std::string base = text("path");
+        unsigned meshes[16];
+        unsigned long long keys[16];
+        int n = pc_studio_meshes ? pc_studio_meshes(meshes, keys, 16) : 0;
+        for (int m = 0; m < n && !base.empty(); m++)
+            if (render_mesh_reference)
+                render_mesh_reference(meshes[m], (base + "." + std::to_string(m)).c_str());
+        result = ",\"meshes\":" + std::to_string(n);
+    } else if (action == "animation") {
+        // {id: a number of the model's (-1: the game's choice), time: frame, play: bool, speed}; the reply's state lists the model's animations
+        float v;
+        if (number("id", &v))
+            animation.id = (int)v, animation.time = 1;
+        if (number("time", &v))
+            animation.time = fmaxf(1, v), animation.playing = false;
+        if (const Json* pl = p.get("play"))
+            animation.playing = pl->type == Json::Bool ? pl->boolean : pl->number != 0;
+        if (number("speed", &v))
+            animation.speed = v;
+        request();
     } else if (action == "backdrop") {
         // {mode: stage | solid; color: [r, g, b] 0..255; preset: a name of backdrop.presets}
         if (const Json* m = p.get("mode"); m && m->type == Json::String)
@@ -1537,6 +1666,13 @@ extern "C" int pc_studio_rpc(const char* params_text, char* out, int size)
         } else {
             result = ",\"pick\":" + pick_json(picked);
         }
+    } else if (action == "dump_model") {
+        // dump_model {path}: the next render's models as drawn, binary (render_mesh_reference), in <path>.0, <path>.1 ...; for parity checks
+        reference_path = text("path");
+        if (reference_path.empty())
+            why = "dump_model needs a path";
+        else
+            request();
     } else if (action != "state") {
         why = "action: state, enter, leave, summon, clear, camera, look, turntable, backdrop, locate, pick, picked, get, list";
     }
@@ -1551,4 +1687,171 @@ extern "C" int pc_studio_rpc(const char* params_text, char* out, int size)
         return -1;
     memcpy(out, reply.c_str(), reply.size() + 1);
     return 0;
+}
+
+// SPIKE (docs/plans/2026-11-24-standalone-studio-spike.md): ROOD_STUDIO_BOOT=1 starts a New Game with no title menu
+// (TITLE.PRG vs_title_exec asks); the studio then enters from the first room's frames.
+extern "C" int pc_studio_boot_skip_title(void)
+{
+    const char* v = getenv("ROOD_STUDIO_BOOT");
+    return v && *v && *v != '0';
+}
+
+// rood-studio (rood_studio.c): the studio's data and look without the game. The look's sun and sky go through the environment layer and the
+// room settings as in the game; the stage's measures are the data's.
+extern "C" int pc_studio_app_look(const char* name)
+{
+    look_name = name && *name ? name : "neutral";
+    apply_look();
+    return 0;
+}
+extern "C" void pc_studio_app_stage(float* radius, float* fillet, float* height, int* grey, float* facet, float* floor_step, float* wall_step,
+    int* actor_light)
+{
+    *radius = num("stage.radius", 900), *fillet = num("stage.fillet", 450), *height = num("stage.height", 1600);
+    *grey = (int)num("stage.grey", 95), *facet = num("stage.facet", 400);
+    *floor_step = num("stage.floor_step", 450), *wall_step = num("stage.wall_step", 800);
+    *actor_light = (int)num("stage.actor_light", 0x808080);
+}
+
+// ---------------------------------------------------------------- rood-studio's app (rood_studio.c)
+//
+// The same studio code (the catalog, the looks, the camera, the turntable, the backdrops, the Studio window, RPC `studio`) with no game behind it: no photo
+// hold, no render requests. The app draws a picture every frame and asks for this frame's state first; it tells what it measured of the model after.
+
+extern "C" void pc_studio_app_begin(void)
+{
+    app_mode = true;
+    entered = true;
+    framed = false;
+    frame_attempts = 0;
+    have_centre = false;
+    read_camera_defaults();
+    pc_studio_open = true;
+}
+// This frame: the studio's state for the app. Returns the serial of the model (it changes with every summon and clear).
+extern "C" int pc_studio_app_frame(pc_studio_app_view* v)
+{
+    if (!app_mode)
+        return -1;
+    studio_render();
+    memset(v, 0, sizeof *v);
+    v->serial = app_serial;
+    if (current) {
+        v->has_item = 1;
+        snprintf(v->kind, sizeof v->kind, "%s", current->kind.c_str());
+        v->id = current->id;
+    }
+    v->scene = app_scene;
+    v->scene.file = v->scene.rig = v->scene.base = nullptr;
+    const float pi = PI_F;
+    v->yaw = (camera.yaw + num("model.facing", 0) * 360.0f / 4096) * pi / 180, v->pitch = -camera.elevation * pi / 180;
+    v->distance = camera.distance * camera.zoom, v->fov = camera.fov;
+    memcpy(v->target, camera.target, sizeof v->target);
+    v->framed = framed;
+    v->rig = (int)num("model.rig", 0);
+    snprintf(v->look, sizeof v->look, "%s", look_name.c_str());
+    // the sequence: time runs at the game's 30 frames a second (the animations' own rate in the field) when playing
+    double now = photo::now_seconds();
+    if (animation.playing && animation.frames > 1 && animation.last > 0)
+        animation.time += (float)(fmin(fmax(now - animation.last, 0.0), 0.1) * 30.0 * animation.speed);
+    animation.last = now;
+    if (animation.frames > 0) {
+        while (animation.time >= animation.frames + 1)
+            animation.time -= animation.frames;
+        if (animation.time < 1)
+            animation.time = 1;
+    }
+    v->animation = animation.id;
+    v->animation_time = animation.time;
+    v->holds = !at("animation.holds") || flag("animation.holds");
+    return app_serial;
+}
+// The model's world box and drawn meshes (what actor_native.c measures in the game), for the camera's fit and the locator.
+extern "C" void pc_studio_app_measured(const float lo[3], const float hi[3], const unsigned* meshes, const unsigned long long* keys, int count)
+{
+    if (pc_studio_bounds_set)
+        pc_studio_bounds_set(lo, hi, meshes, keys, count);
+}
+// A picture has been drawn: the locator's capture of it (a change waiting means the next picture shows it).
+extern "C" void pc_studio_app_landed(void) { capture_take(entered && !(again || dirty)); }
+// The app's own start: a model and a look from its command line (the same actions RPC `studio` has).
+extern "C" int pc_studio_app_summon(const char* kind, int id, char* why, int size)
+{
+    std::string r = summon(kind, id);
+    if (!r.empty())
+        snprintf(why, (size_t)size, "%s", r.c_str());
+    return r.empty() ? 0 : -1;
+}
+extern "C" void pc_studio_app_set_look(const char* name)
+{
+    if (name && *name)
+        look_name = name;
+}
+
+// rood-studio's own screen: the models on the left, the controls on the right, the picture between them and behind them; the pointer on the picture
+// orbits (drag) and zooms (wheel), F frames the model, T starts and stops the turntable.
+static void app_screen()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    const float W = io.DisplaySize.x, H = io.DisplaySize.y, unit = ImGui::GetFontSize();
+    const float left = fmaxf(W * 0.2f, unit * 16), right = fmaxf(W * 0.27f, unit * 22);
+    const ImGuiWindowFlags fixed = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings
+        | ImGuiWindowFlags_NoTitleBar;
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImVec2(left, H));
+    ImGui::SetNextWindowBgAlpha(0.88f);
+    if (ImGui::Begin("rood-studio models", nullptr, fixed)) {
+        ImGui::TextColored(ImVec4(0.45f, 0.9f, 0.5f, 1), "rood-studio");
+        ImGui::SameLine();
+        ImGui::TextDisabled("models");
+        ImGui::Separator();
+        catalog_body();
+    }
+    ImGui::End();
+    ImGui::SetNextWindowPos(ImVec2(W - right, 0));
+    ImGui::SetNextWindowSize(ImVec2(right, H));
+    ImGui::SetNextWindowBgAlpha(0.88f);
+    if (ImGui::Begin("rood-studio controls", nullptr, fixed)) {
+        ImGui::TextUnformatted(current ? current->name.c_str() : "pick a model");
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", current ? current->kind.c_str() : "");
+        ImGui::Separator();
+        controls_body();
+    }
+    ImGui::End();
+    // the picture: the pointer over it (no panel under it) moves the camera
+    if (!io.WantCaptureMouse && current) {
+        bool moved = false;
+        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left, 2)) {
+            camera.yaw -= io.MouseDelta.x * 0.4f;
+            camera.elevation = fmaxf(-85, fminf(85, camera.elevation + io.MouseDelta.y * 0.3f));
+            moved = true;
+        }
+        if (io.MouseWheel != 0) {
+            camera.zoom = fmaxf(0.05f, fminf(20, camera.zoom * powf(0.9f, io.MouseWheel)));
+            moved = true;
+        }
+        if (moved)
+            request();
+    }
+    if (!io.WantTextInput) {
+        if (ImGui::IsKeyPressed(ImGuiKey_F) && current) {
+            framed = false, frame_attempts = 0, camera.zoom = 1;
+            request();
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_T)) {
+            set_at("turntable.model", Json::boolean_(!flag("turntable.model")));
+            request();
+        }
+    }
+}
+extern "C" void pc_studio_app_ui(int on) { app_ui = on != 0; }
+
+// The app tells which animations the model has, the length of the one shown and its number.
+extern "C" void pc_studio_app_animations(const int* ids, int count, int frames, int shown)
+{
+    animation.ids.assign(ids, ids + count);
+    animation.frames = frames > 0 ? frames : 1;
+    animation.shown = shown;
 }

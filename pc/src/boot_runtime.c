@@ -1054,9 +1054,21 @@ int main(int argc, char** argv)
     signal(SIGFPE, pc_crash);
     signal(SIGILL, pc_crash);
     signal(SIGABRT, pc_crash); /* e.g. stack protector failures */
-    int window = 0, fast = 0;
+    int window = 0, fast = 0, studio_app = 0;
+    {   /* rood-studio (rood_studio.c): this executable started as `rood-studio`, or with --rood-studio and the studio's own options */
+        const char* name = strrchr(argv[0], '/');
+        name = name ? name + 1 : argv[0];
+        studio_app = !strncmp(name, "rood-studio", 11);
+    }
     for (int i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "--loading-checkpoint"))
+        if (!strcmp(argv[i], "--rood-studio"))
+            studio_app = 1;
+        else if (studio_app && !strncmp(argv[i], "--", 2) && strcmp(argv[i], "--window") && strcmp(argv[i], "--fast") && strcmp(argv[i], "--skip-movies")) {
+            if (++i < argc && !strncmp(argv[i], "--", 2))
+                --i; /* (an option without a value) */
+        } else if (studio_app && strncmp(argv[i], "--", 2)) {
+            continue;
+        } else if (!strcmp(argv[i], "--loading-checkpoint"))
             stop_at_loading = 1;
         else if (!strcmp(argv[i], "--title-checkpoint"))
             stop_at_title = 1;
@@ -1109,7 +1121,16 @@ int main(int argc, char** argv)
 #endif
     if (pc_engine_start)
         pc_engine_start(); /* the engine library, once the fixed ranges are taken */
+    if (studio_app)
+        window = 1;
     pc_window_init(window, fast); /* loads the settings (dev_overlay.cpp) */
+    if (studio_app) { /* no game: the studio's app takes over (rood_studio.c) */
+        extern int pc_rood_studio_run(int, char**) __attribute__((weak));
+        extern void pc_audio_output_start(void);
+        int code = pc_rood_studio_run ? pc_rood_studio_run(argc - 1, argv + 1) : 1;
+        fflush(stderr);
+        exit(code);
+    }
     if (&pc_skip_intro && pc_skip_intro) {
         intro_skipped_by_setting = pc_skip_movies ? 1 : 2;
         pc_skip_movies = pc_skip_logos = 1;

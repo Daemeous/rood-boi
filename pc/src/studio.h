@@ -36,17 +36,40 @@ typedef struct {
     int material;                 /* WEP: the weapon's material; SHP: its default material */
     int facing;                   /* 0..4095 */
     int animation;                /* the sequence to play (the loader's numbering); <0: none */
+    int animation_frame;          /* > 0: start it that many frames in (events included: vs_actors_playActorAnimationAtFrame) */
     int backdrop;                 /* 1: no stage: the game's own background drawn in the one colour `backdrop_rgb` (0xBBGGRR) */
     int backdrop_rgb;
     int hide_others;              /* the room's actors are not drawn */
     int equipment;                /* ZUD: its weapon and shield (0: the model alone) */
 } pc_studio_scene_cfg;
 
+/* rood-studio (rood_studio.c): the studio without a game. pc_studio_app_frame gives the app this frame's state: the model asked for (kind, id; `serial`
+ * changes with every summon and clear), the scene as the in-game studio would build it (the stage's measures, the backdrop, the facing, the equipment
+ * switch), the camera (yaw and pitch in radians, distance to the target, fov in degrees), the look. */
+typedef struct {
+    int serial, has_item, id, framed, rig;
+    char kind[12], look[24];
+    pc_studio_scene_cfg scene;
+    float yaw, pitch, distance, fov, target[3];
+    int animation;        /* the animation asked for (-1: the game's own choice) */
+    float animation_time; /* where in it, in frames */
+    int holds;            /* the animation's bone holds are applied (data animation.holds) */
+} pc_studio_app_view;
+void pc_studio_app_begin(void);
+int pc_studio_app_frame(pc_studio_app_view* view);
+void pc_studio_app_measured(const float lo[3], const float hi[3], const unsigned* meshes, const unsigned long long* keys, int count);
+void pc_studio_app_landed(void);
+void pc_studio_app_animations(const int* ids, int count, int frames, int shown); /* the model's animations, the shown one's length and number */
+int pc_studio_app_summon(const char* kind, int id, char* why, int size); /* 0, or -1 with the reason */
+void pc_studio_app_set_look(const char* name);
+void pc_studio_app_ui(int on); /* the app's screen (the panels): off for a picture asked for */
+
 /* What it made (out): the actor slot of the model (-1 none), where it stands (world), a message. */
 typedef struct {
     int slot, weapon_slot;
     float position[3];
     int bones;
+    int animation, animation_frames; /* the sequence the game started (its numbering), and its length in frames */
     char message[160]; /* why it failed */
     char info[96];     /* what it built (the stage's size) */
 } pc_studio_scene_out;

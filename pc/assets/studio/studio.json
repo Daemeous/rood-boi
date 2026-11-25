@@ -27,9 +27,13 @@
     "guess_height": 220,
     "guess_distance": 600
   },
+  "animation": {
+    "holds": true
+  },
   "model": {
     "facing": 0,
     "animation": 1,
+    "animation_frame": 0,
     "equipment": 1,
     "loader_id": 200,
     "material": 0,

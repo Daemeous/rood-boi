@@ -76,3 +76,7 @@ Each render that lands leaves the model's posed triangles and the view the pictu
 - Hidden-ness is the CPU's: a footprint is dimmed where another triangle of the model is nearer at its centre (`occlusion_tolerance`), not per pixel of the footprint, and not behind the stage.
 - A texel is its page's pixel (palette indices are not looked at): two palettes of one texture are two pages, and the sprite titles name the palette (`_c<clut>`).
 - The marker marks the posed model of the last render; models not drawn through the object builders (none in the studio) are not captured.
+
+## rood-studio, the same studio with no game
+
+`rood-studio` (the game binary started under that name; design and proof: `pc/docs/plans/2026-11-24-standalone-studio-design.md`) is this studio's code with no game behind it: the models are read from the disc by native decoders (`pc/src/native_model`), the stage and the look are the data above, and the Studio window's controls and catalog are its own screen (`studio.cpp` app mode: `pc_studio_app_*`). RPC `studio` works on it as it does in the game (`enter` and `leave` do nothing), with `animation {id, time, play, speed}` for the model's sequences. `pc/tests/rood_studio_smoke.py` compares it with this studio: the polygons, texture and CLUT words, content keys, bone matrices (the sequence decoder's, for the idle and other animations) and the pictures.

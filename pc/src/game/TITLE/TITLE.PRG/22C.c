@@ -4660,6 +4660,15 @@ int vs_title_exec(void)
     _introMoviePlaying = 0;
     ++vs_main_titleScreenCount;
     menuItem = _saveFileExists();
+#ifdef ROOD_PC
+    { /* spike: the standalone studio starts a New Game with no title (studio.cpp) */
+        extern int pc_studio_boot_skip_title(void) __attribute__((weak));
+        if (pc_studio_boot_skip_title && pc_studio_boot_skip_title()) {
+            _setTitleExitFlags(menuItemNewGame);
+            return menuItemNewGame;
+        }
+    }
+#endif
 
     do {
         for (i = 7; i >= 0; --i) {

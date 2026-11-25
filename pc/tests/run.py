@@ -695,6 +695,15 @@ def suites(args, mode="egl"):
                  sources=[TESTS / "studio_smoke.py", ROOT / "pc/src/studio.cpp", ROOT / "pc/src/studio.c",
                           ROOT / "pc/tools/studio_scan.py", ROOT / "pc/assets/studio/studio.json"])]
           if args.save.exists() else []),
+        *([Suite("rood_studio_smoke", [PY, str(TESTS / "rood_studio_smoke.py")], 900,
+                 note="rood-studio, the standalone model studio (no game): the native SHP/WEP/ZUD decoders against the in-game studio "
+                      "(polygons, texture words, CLUT words, content keys, the skeleton's chain: characters of both record layouts, an "
+                      "enemy, a weapon), the same picture in the flat look from the game's palette and camera, every model the catalog "
+                      "names decodes, a normal start draws a character in the rest pose with path tracing",
+                 sources=[TESTS / "rood_studio_smoke.py", ROOT / "pc/src/rood_studio.c", ROOT / "pc/src/native_model/native_model.c",
+                          ROOT / "pc/src/native_model/native_model.h", ROOT / "pc/src/studio_stage.c", ROOT / "pc/src/studio.cpp",
+                          ROOT / "pc/src/studio.c", ROOT / "pc/assets/studio/studio.json", ROOT / "pc/assets/studio/catalog.json"])]
+          if (ROOT / "disks/SLUS-01040.bin").exists() or os.environ.get("ROOD_DISC") else []),
         *([Suite("studio_window_smoke", [PY, str(TESTS / "studio_window_smoke.py"), "--card", str(args.save)], 600,
                  note="the model studio as used in the editor: the game running live (not RPC-paused), Window > Studio docked "
                       "short and wide; entering shows the stage and a summoned character in the Game panel (not the live "
@@ -1102,6 +1111,7 @@ CHECKPOINT_SUITES = {
 # those: in a full run the capped ones form a queue of their own (their
 # summed time / --heavy-jobs is a floor for the run's wall time).
 HEAVY_SUITES = {
+    "rood_studio_smoke",
     "glow_stability_smoke", "save_point_glow_smoke", "probe_gi_smoke", "gi_smoke", "gi_repeat_smoke", "gi_lag_smoke", "nrd_smoke",
     "rt_camera_smoke", "studio_smoke", "studio_locate_smoke", "sky_smoke", "game_sky_smoke", "lighting_presets_smoke", "emissive_smoke", "ui_ashley_stability_smoke",
 }
