@@ -110,7 +110,7 @@ int pc_frame_run_live(int first, int count)
 static int order_marker[ITEMS];
 static const uint32_t* order_at[ITEMS]; /* (a spliced table's run: the entry it is drawn after) */
 typedef struct {
-    long key;
+    long long key; /* (slot << 20: past 32 bits for a table of 0x822 entries; Windows' long is 32 bits) */
     int marker;
     const uint32_t* at;
 } keyed;
@@ -133,10 +133,10 @@ int pc_frame_table_order(const void* head)
         const uint32_t *e = markers[i].entry, *at = NULL;
         if (!e || !pc_frame_run_live(markers[i].first, markers[i].count))
             continue;
-        long slot, sub;
+        long long slot, sub;
         if (e >= tables[t].base && e < tables[t].base + tables[t].n) {
             slot = e - tables[t].base;
-            sub = markers[i].tail ? (1L << 19) + ITEMS + i : (1L << 19) + (ITEMS - 1 - i);
+            sub = markers[i].tail ? (1LL << 19) + ITEMS + i : (1LL << 19) + (ITEMS - 1 - i);
         } else { /* a spliced table's run: at the entry the table is drawn after */
             slot = -1;
             for (int sp = 0; sp < 4 && slot < 0; sp++) {
@@ -147,13 +147,13 @@ int pc_frame_table_order(const void* head)
                 if (bt >= 0 && splice_of[sp].at >= tables[t].base && splice_of[sp].at < tables[t].base + tables[t].n) {
                     slot = splice_of[sp].at - tables[t].base;
                     at = splice_of[sp].at;
-                    sub = (long)(tables[bt].reverse ? tables[bt].n - 1 - (e - tables[bt].base) : e - tables[bt].base) * ITEMS + (ITEMS - 1 - i);
+                    sub = (long long)(tables[bt].reverse ? tables[bt].n - 1 - (e - tables[bt].base) : e - tables[bt].base) * ITEMS + (ITEMS - 1 - i);
                 }
             }
             if (slot < 0)
                 continue;
         }
-        long from = h - tables[t].base;
+        long long from = h - tables[t].base;
         if (tables[t].reverse ? slot > from : slot < from) /* (drawing starts at `head`: the slots before it are not reached) */
             continue;
         run[n].key = ((tables[t].reverse ? -slot : slot) << 20) + sub, run[n].marker = i, run[n].at = at;
