@@ -64,6 +64,8 @@ typedef struct {
     unsigned wep_palette_bytes, wep_first_palette_bytes;
 } pc_nm_model;
 
+#include "native_model_formats.h"
+
 /* Decode a SHP / WEP file: 0 on success, else -1 with `err` (the file is not used after the call). */
 int pc_nm_shp_decode(const uint8_t* file, size_t size, pc_nm_model* out, char* err, size_t err_size);
 int pc_nm_wep_decode(const uint8_t* file, size_t size, pc_nm_model* out, char* err, size_t err_size);

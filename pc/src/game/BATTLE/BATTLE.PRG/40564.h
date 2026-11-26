@@ -1,4 +1,5 @@
 #pragma once
+#include "pc/src/native_model/native_model_formats.h"
 #include "func_8006EBF8_t.h"
 #include <stddef.h>
 #include <libgte.h>

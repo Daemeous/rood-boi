@@ -2156,31 +2156,6 @@ extern int pc_room_warp_poll(void);
 extern int pc_action_poll(void); /* pc/src/action_driver.c: the dev RPC action */
 extern void pc_action_capture(const void* state, int kind, int mode, int menu);
 
-static vs_zud_part vs_zud_partAt(const void* file, int index)
-{
-    const u_char* base = (const u_char*)file;
-    const unsigned* word = (const unsigned*)(base + 8 + 8 * index);
-    vs_zud_part part = { (void*)(base + word[0]), (int)word[1] };
-    return part;
-}
-
-void vs_zud_decode(vs_zud_file* out, const void* file)
-{
-    const u_char* base = (const u_char*)file;
-    out->characterId = base[0];
-    out->weapon = base[1];
-    out->weaponCategory = base[2];
-    out->weaponMaterial = base[3];
-    out->shield = base[4];
-    out->shieldMaterial = base[5];
-    out->defaultMaterial = base[6];
-    out->shp = vs_zud_partAt(file, 0);
-    out->weaponWep = vs_zud_partAt(file, 1);
-    out->shieldWep = vs_zud_partAt(file, 2);
-    out->commonSeq = vs_zud_partAt(file, 3);
-    out->battleSeq = vs_zud_partAt(file, 4);
-}
-
 void vs_mpd_decode(vs_mpd_file* out, const void* file)
 {
     const _mpdHeader* h = (const _mpdHeader*)file;

@@ -4,7 +4,18 @@ const common = @import("common");
 const psx = common.psx;
 const v = @import("views_30DB0");
 const c = @import("c_30DB0");
-const seq_file = @import("seq_file.zig");
+
+/// A sequence block and a shared set as native_model reads them (pc_nm_seq_block_at, pc_nm_seq_shared_at: the one reading of the format).
+fn seqBlock(at: usize) c.pc_nm_seq_block {
+    var b: c.pc_nm_seq_block = undefined;
+    c.pc_nm_seq_block_at(@ptrFromInt(at), &b);
+    return b;
+}
+fn seqShared(at: usize) c.pc_nm_seq_shared {
+    var set: c.pc_nm_seq_shared = undefined;
+    c.pc_nm_seq_shared_at(@ptrFromInt(at), &set);
+    return set;
+}
 
 /// orig: _loadSeq (pc/src/game/BATTLE/BATTLE.PRG/30DB0.c)
 /// Loads the sequence data an object names into its actor slot, or into the shared slots, and resumes the effect loader when needed.
@@ -27,7 +38,7 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
                 psx.put(&actor.unk5D4, psx.get(source.unk5D4));
                 return 0;
             }
-            const blk = seq_file.block(at);
+            const blk = seqBlock(at);
             actor.unk5B4 = blk.head;
             const size = roundUp4(blk.size);
             const alloc = c.vs_main_allocHeap(psx.conv(c_uint, size));
@@ -37,7 +48,7 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
             return copySequence(seq, size, blk.data);
         }
         if (obj.modelId == 0xFF) {
-            const blk = seq_file.block(at);
+            const blk = seqBlock(at);
             const size = roundUp4(blk.size);
             const alloc = c.vs_main_allocHeap(psx.conv(c_uint, size));
             if (alloc == null) return -2;
@@ -64,7 +75,7 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
             actor.unk5B1 = psx.conv(u8, obj.modelId);
             return 0;
         }
-        const blk = seq_file.block(at);
+        const blk = seqBlock(at);
         actor.unk5B5 = blk.head;
         if (blk.bones != 0 and @as(c_int, blk.bones) != @as(c_int, actor.unk0.nBones)) return 0;
         const size = roundUp4(blk.size);
@@ -80,12 +91,12 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
         actor.unk5B1 = psx.conv(u8, obj.modelId);
         return copySequence(seq, size, blk.data);
     } else if (obj.actorId == 3) {
-        const blk = seq_file.block(at);
+        const blk = seqBlock(at);
         const size = roundUp4(blk.size);
         return copySequence(seqOf(v.g.D_800F4768().*), size, blk.data);
     } else if (obj.actorId == 4 or obj.actorId == 5) {
         const actor = psx.at(v.g.vs_actors_actorRecords(), obj.index).*.?;
-        const blk = seq_file.block(at);
+        const blk = seqBlock(at);
         actor.unk5B6 = blk.head;
         const size = roundUp4(blk.size);
         const alloc = c.vs_main_allocHeap(psx.conv(c_uint, size));
@@ -98,20 +109,20 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
         psx.at(v.g.D_800F2450(), slot).* = 0;
         if (psx.at(v.g.vs_actors_sharedSequenceData(), slot).* != null) return -2;
         psx.at(v.g.vs_actors_sharedSequenceData(), slot).* = @ptrFromInt(at);
-        const set = seq_file.shared(at);
+        const set = seqShared(at);
         const count = set.count;
         var i: c_int = 0;
         while (i < count) : (i += 1) {
-            psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationIds(), slot), i).* = psx.conv(i16, set.id(i));
+            psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationIds(), slot), i).* = psx.conv(i16, c.pc_nm_seq_shared_id(&set, i));
         }
         i = 0;
         while (i < count) : (i += 1) {
-            psx.at(psx.at(v.g.D_800F4938(), slot), i).* = psx.conv(i16, set.key(i));
+            psx.at(psx.at(v.g.D_800F4938(), slot), i).* = psx.conv(i16, c.pc_nm_seq_shared_key(&set, i));
         }
         psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationIds(), slot), i).* = -1;
         i = 0;
         while (i < count) : (i += 1) {
-            psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationData(), slot), i).* = toPtr(@as(usize, set.offset(i)) +% set.streams());
+            psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationData(), slot), i).* = toPtr(@as(usize, c.pc_nm_seq_shared_offset(&set, i)) +% @intFromPtr(c.pc_nm_seq_shared_streams(&set)));
         }
         psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationData(), slot), i).* = @ptrFromInt(std.math.maxInt(usize));
         i = 0;

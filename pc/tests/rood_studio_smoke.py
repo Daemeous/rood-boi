@@ -178,8 +178,8 @@ def run(out):
 
     # ---- rood-studio against them ----
     binary = rood_rpc.BUILD / "rood-studio"
-    if not binary.exists():
-        binary.symlink_to("rood_battle_probe")
+    if not binary.exists() or binary.is_symlink():
+        raise SystemExit("pc/build/boot64/rood-studio is the studio's own executable (build_boot.py makes it): build first")
 
     def studio(*argv, gi="0", timeout=180, extra=None):
         e = {**os.environ, **env, "ROOD_GI": gi, **(extra or {})}
@@ -264,7 +264,6 @@ def run(out):
         settle(g, "character", 3)
         a = shot(g, "summon")
         check(centre(a).std() > 12, f"summoning a character through the studio's RPC shows it ({centre(a).std():.1f})")
-        base = model_height(a, 95)
 
         # ---- live paint: the Aseprite bridge into the running studio (and a second target, as a game beside it) ----
         pkg = out / "paint_pkg"
@@ -324,10 +323,23 @@ def run(out):
         g.wait_presents(8)
         b = shot(g, "orbit")
         check(float(np.abs(centre(a) - centre(b)).mean()) > 3, "orbiting changes the picture")
-        g.call("studio", action="camera", yaw=20, zoom=2)
-        g.wait_presents(8)
-        c = shot(g, "zoom")
-        check(model_height(c, 95) < base * 0.9, f"zooming out shrinks the model ({base} -> {model_height(c, 95)} px)")
+        # (the model's height is measured on a solid black backdrop: against the stage it depends on how the lit stage looks that frame)
+        g.call("studio", action="backdrop", mode="solid", preset="black")
+        heights = []
+        for zoom in (1, 2):
+            g.call("studio", action="camera", yaw=20, zoom=zoom)
+            g.wait_presents(8)
+            c = shot(g, "zoom")
+            for _ in range(6):  # (taken once the model's height stops changing)
+                g.wait_presents(8)
+                again = shot(g, "zoom")
+                settled = abs(model_height(again, 0) - model_height(c, 0)) <= 2
+                c = again
+                if settled:
+                    break
+            heights.append(model_height(c, 0))
+        g.call("studio", action="backdrop", mode="stage")
+        check(heights[1] < heights[0] * 0.9, f"zooming out shrinks the model ({heights[0]} -> {heights[1]} px)")
         g.call("studio", action="camera", frame=True, yaw=20, elevation=12, zoom=1)
         settle(g, "character", 3)
         for preset, value in (("black", 0), ("white", 255), ("grey", None)):

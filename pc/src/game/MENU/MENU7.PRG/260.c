@@ -208,7 +208,7 @@ static void _readImage(int xy, void* buffer, int wh)
 
     *(int*)&rect.x = xy;
     *(int*)&rect.w = wh;
-    StoreImage(&rect, buffer);
+    pc_vram_read(&rect, buffer);
     DrawSync(0);
 }
 
@@ -3560,7 +3560,7 @@ int vs_menu7_gameOver(u_char* state)
         _initMemcard(1);
         _initFileMenu();
         setRECT(&rect, 640, 511, 256, 1);
-        StoreImage(&rect, (u_long*)clutBuf);
+        pc_vram_read(&rect, (u_long*)clutBuf);
         DrawSync(0);
         vs_main_loadClut(clutBuf, 3, 0, 256);
         *state = displayFileMenu;

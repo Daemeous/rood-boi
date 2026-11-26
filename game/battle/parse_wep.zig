@@ -8,10 +8,6 @@ const wep_file = @import("wep_file.zig");
 const Memcpy = *const fn (?*anyopaque, ?*const anyopaque, usize) callconv(.c) ?*anyopaque;
 const Memset = *const fn (?*anyopaque, c_int, usize) callconv(.c) ?*anyopaque;
 
-inline fn byte(data: usize) *u8 {
-    return @ptrFromInt(data);
-}
-
 inline fn intBits(size: c_int) usize {
     return @as(u32, @bitCast(size));
 }
@@ -110,28 +106,11 @@ pub fn parseWep(object: *v.vs_battle_objectData) callconv(.c) c_int {
         },
         .fix_prims => {
             const m = model.?;
-            const count: c_int = @as(c_int, m.nOther) + m.nTriangles + m.nQuads;
             const offsets = psx.get(m.offsets).?;
-            var prim: usize = @intFromPtr(offsets) +% @as(u32, @bitCast(offsets.polygonsOffset));
+            const records: [*]u8 = @ptrFromInt(@intFromPtr(offsets) +% @as(u32, @bitCast(offsets.polygonsOffset)));
             const texU: c_int = (@as(c_int, m.texSlot) & 1) * 64;
-            var n: c_int = 0;
-            while (n < count) : (n += 1) { // n < count <= 3 * 0xFFFF
-                var vertices: c_int = 4;
-                if (byte(prim).* == c.primPolyFT3) {
-                    prim +%= 10;
-                    vertices = 3;
-                } else {
-                    prim +%= 12;
-                }
-                var k: c_int = 0;
-                while (k < vertices) : ({
-                    prim +%= 2;
-                    k += 1; // k < 4
-                }) {
-                    byte(prim).* = psx.conv(u8, @as(c_int, byte(prim).*) +% texU);
-                    byte(prim +% 1).* = psx.conv(u8, @as(c_int, byte(prim +% 1).*) +% texV);
-                }
-            }
+            // the texture slot's column and row added to every texture coordinate: native_model's, the flat records' layout
+            c.pc_nm_fix_records(records, m.nTriangles, m.nQuads, m.nOther, 0, texU, texV);
             _ = memcpy(&m.unkBoneInfo, @ptrFromInt(data), intBits(@as(c_int, m.nBones) * 8));
             wep_file.release();
             c._loadMaterialPalette(object.index, object.material);

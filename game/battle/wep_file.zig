@@ -1,5 +1,5 @@
 //! The weapon model file (WEP), decoded. The file is a header, an offsets block, a palette header, the palettes and the
-//! texture, then the bone info; its fields are read once, here, from the bytes (the layout below is the whole format) and
+//! texture, then the bone info; its fields are read once, by native_model's pc_nm_wep_layout (the layout below is the whole format) and
 //! parseWep works from this record instead of a cursor. The payload (the offsets block with its polygons, the palettes,
 //! the texture, the bone info) stays in the file's buffer, raw, where the renderer and LoadImage want it: the record
 //! holds pointers into it. The record lives in the port arena, not the game heap, from the first pass to the second.
@@ -13,6 +13,7 @@
 const common = @import("common");
 const psx = common.psx;
 const port_arena = common.port_arena;
+const c = @import("c_30DB0");
 
 pub const WepFile = extern struct {
     n_bones: c_int,
@@ -45,27 +46,22 @@ pub const WepFile = extern struct {
     }
 };
 
-inline fn i32At(p: [*]const u8) c_int {
-    return @as(*align(1) const c_int, @ptrCast(p)).*;
-}
-
-/// Decodes the file at `at` (its address in the buffer) into the WEP record of the port arena (replacing the one a
-/// load that never finished left). Null when the arena is full.
+/// Reads the file at `at` (its address in the buffer) into the WEP record of the port arena (replacing the one a load that never finished left):
+/// the layout is native_model's (pc_nm_wep_layout, the one decoder rood-studio reads the same files with). Null when the arena is full.
 pub fn decode(at: usize) ?*WepFile {
     const file = port_arena.put(WepFile, .wep) orelse return null;
-    const base: [*]const u8 = @ptrFromInt(at);
-    file.n_bones = i32At(base + 4);
-    file.n_quads = i32At(base + 8);
-    file.offsets_size = i32At(base + 0xC);
-    const size: usize = @as(u32, @bitCast(file.offsets_size));
-    file.offsets = base + 0x10;
-    const after = base + 0x10 + size;
-    file.tex_width = @as(c_uint, after[5]) *% 2;
-    file.palette_size = after[7];
-    file.palette_first = after + 8;
-    file.palettes = file.palette_first + file.firstPaletteBytes();
-    file.texture = file.palettes + 7 * file.paletteBytes();
-    file.bone_info = file.texture + @as(usize, file.tex_width) * 32;
+    var parts: c.pc_nm_wep_parts = undefined;
+    c.pc_nm_wep_layout(@ptrFromInt(at), &parts);
+    file.n_bones = parts.n_bones;
+    file.n_quads = parts.n_quads;
+    file.offsets_size = @intCast(parts.offsets_size);
+    file.tex_width = parts.tex_width;
+    file.palette_size = @intCast(parts.palette_size);
+    file.offsets = parts.offsets;
+    file.palette_first = parts.palette_first;
+    file.palettes = parts.palettes;
+    file.texture = parts.texture;
+    file.bone_info = parts.bone_info;
     return file;
 }
 

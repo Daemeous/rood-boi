@@ -449,11 +449,6 @@ static void fence(pc_rq* rq)
         pc_stale_readback(&pc_hwr_stale, reply.rect[i].x, reply.rect[i].y, reply.rect[i].w, reply.rect[i].h);
     pc_rq_readback_apply(&reply, (uint16_t*)(uintptr_t)pc_native_vram());
 }
-void pc_hwc_fence_store(int x, int y, int w, int h)
-{
-    pc_rq rq = { .kind = PC_RQ_SYNC_STORE, .arg = { x, y, w, h } };
-    fence(&rq);
-}
 /* The stream digest\'s events (boot_runtime.c): records, in order with everything else, applied by the renderer. */
 typedef struct {
     int op, n;

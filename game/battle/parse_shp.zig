@@ -13,10 +13,6 @@ const Reset = *const fn (c_int) callconv(.c) void;
 /// LoadImage's u_long* as the C passes it: a byte pointer, any alignment.
 const LoadImage = *const fn ([*c]c.RECT, ?*const anyopaque) callconv(.c) c_int;
 
-inline fn byte(data: usize) *u8 {
-    return @ptrFromInt(data);
-}
-
 /// *(u_int*)((char*)actor + 0x5AC): the actor's flag word.
 inline fn flagWord(actor: *v.D_800F4538_t) c_uint {
     return psx.bitsAt(c_uint, &actor._bits_unk5AC_0, 0).*;
@@ -259,54 +255,13 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
     }
 
     if (stage == .fix_uvs) {
-        const count: c_int = @as(c_int, actor.unk0.nOther) + actor.unk0.nTriangles + actor.unk0.nQuads;
         const header = psx.get(actor.unk0.model).?;
-        var prim: usize = @intFromPtr(header) +% header.polyOffset;
+        const prim: [*]u8 = @ptrFromInt(@intFromPtr(header) +% header.polyOffset);
         const slot_index: c_int = actor.unk5BB;
         if (c.pc_table_index_ok("vs_actors_textureSlotRowOffsets", slot_index, 24, "actor texture slot", @intCast(slot_index), 0) == 0) return -2;
         const texV: c_int = @as(c_int, v.g.vs_actors_textureSlotRowOffsets()[@intCast(slot_index)]) << 6;
-        if (psx.getBits(&actor.unk0, "unk8_3") == 0) {
-            var k: c_int = 0;
-            while (k < count) : (k += 1) {
-                var vertices: c_int = 4;
-                if (byte(prim).* == c.primPolyFT3) {
-                    prim +%= 10;
-                    vertices = 3;
-                } else {
-                    prim +%= 12;
-                }
-                var corner: c_int = 0;
-                while (corner < vertices) : ({
-                    prim +%= 2;
-                    corner += 1;
-                }) {
-                    byte(prim).* +%= 0;
-                    byte(prim +% 1).* = psx.conv(u8, @as(c_int, byte(prim +% 1).*) +% texV);
-                }
-            }
-        } else {
-            var k: c_int = 0;
-            while (k < count) : (k += 1) {
-                var vertices: c_int = undefined;
-                if (byte(prim +% 11).* == 0x34) {
-                    byte(prim +% 6).* +%= 0;
-                    byte(prim +% 7).* = psx.conv(u8, @as(c_int, byte(prim +% 7).*) +% texV);
-                    prim +%= 20;
-                    vertices = 2;
-                } else {
-                    prim +%= 24;
-                    vertices = 4;
-                }
-                var corner: c_int = 0;
-                while (corner < vertices) : ({
-                    prim +%= 2;
-                    corner += 1;
-                }) {
-                    byte(prim).* +%= 0;
-                    byte(prim +% 1).* = psx.conv(u8, @as(c_int, byte(prim +% 1).*) +% texV);
-                }
-            }
-        }
+        // the slot's rows added to every texture coordinate (native_model's: the flat records, or the coloured ones when the texture block's flags say so)
+        c.pc_nm_fix_records(prim, actor.unk0.nTriangles, actor.unk0.nQuads, actor.unk0.nOther, psx.getBits(&actor.unk0, "unk8_3"), 0, texV);
     }
 
     // setupPalettes

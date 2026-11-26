@@ -51,7 +51,6 @@ extern "C" {
     X(native_marker, 'A') \
     X(native_translucent, 'A') \
     X(sync, 'V') \
-    X(sync_store, 'V') \
     X(capture_read, 'V') \
     X(stale_copy, 'V') \
     X(ot_native_area, 'A') \

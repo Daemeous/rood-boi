@@ -3,6 +3,10 @@
 #include <libgte.h>
 #include <libgpu.h>
 
+/* The PC build's two reads of VRAM (boot_sdk.c): a transfer area, exact in the game's array; and the frame the renderer drew, read back first. */
+extern int pc_vram_read(RECT* rect, u_long* p);
+extern int pc_frame_read(RECT* rect, u_long* p);
+
 enum vs_texMode { clut4Bit = 0, clut8Bit = 1, direct16Bit = 2 };
 
 enum vs_semiTransparencyRate {

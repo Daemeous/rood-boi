@@ -37,7 +37,7 @@ path exists next to the PS1 one), **native**.
 | ID | Tie | Player feels | Status | Size to replace | Depends on |
 |---|---|---|---|---|---|
 | T1 | The game's loop blocks in `VSync`; host work runs inside it, on one thread | Frame hitches stall sound and input; no unlocked frame rate | PS1 | very large | T4, T7, T13 |
-| T2 | Logic runs at 30 or 20 per second; the host interpolates some things | Characters smooth, HUD, menus and many effects step at 30 | partly | large | T1, T4 |
+| T2 | Logic runs at 30 or 20 per second; the host interpolates some things, paced to the display (opt-in) | Characters smooth, HUD, menus and many effects step at 30 | partly | large | T1, T4 |
 | T3 | Wall-clock time read as PS1 "scanlines" | Done 2026-11-08 | native | done | none |
 | T4 | GPU packets and ordering tables built in RAM, then walked | Draw order and effects follow PS1 rules; widescreen and 2D compromises | partly | very large | T13, T14 |
 | T5 | Textures and palettes live in a 1024 x 512 16-bit VRAM; a CPU rasterizer still runs | Texture size, 256-colour limits, palette animation | partly | large | T4 |
@@ -97,29 +97,34 @@ scenes (`vs_gametime_tickspeed`). The host presents once per vsync and, if `pc_h
 (it is, by default), draws in-between pictures from the previous and current game frames. It can present
 `pc_present_rate` images per vsync (default 1, up to 8, or "match display").
 
-The pacing is the host sleeping until absolute 59.94 Hz deadlines (`FIELD_NS`), whether or not display
-sync is on. The interpolation phase is an integer fraction of that field (`k/n`), not real elapsed time.
+Two pacings (setting `present_pacing`, F1 dev panel "Present pacing"). Classic (0, the default): the host sleeps
+until absolute 59.94 Hz deadlines (`FIELD_NS`) and the in-between phase is an integer fraction of the field (`k/n`).
+Display (1, T1 R5): the display's vblank paces the presents. A phase-locked grid follows the observed refresh (a
+variable rate or a compositor included), and every image, the first included, is blended to the real time its
+vblank puts it on screen, so 90 Hz shows 1, 2, 1, 2 images a field and 144 Hz 2, 3, 2, 3, 2 with even motion. The
+game's own stepping is the same 59.94 Hz deadlines either way.
 
 **Player feels.** Characters, weapons, props, drop shadows, particles and the camera are blended, so
 they look smooth. What is still drawn as packets steps at the game's rate: the HUD, menus, text, the
 screen-space effect plugins, particles on fixed layers, texture animation and vertex morphs
-(`pc/docs/Native_Rendering.md`, "What still steps"). On displays whose refresh is not a whole multiple of
-59.94 Hz, the fixed fractions cannot match the display clock; the cadence consequence is
-**unconfirmed**.
+(`pc/docs/Native_Rendering.md`, "What still steps"). With classic pacing on a display whose refresh is not a
+whole multiple of 59.94 Hz the fixed fractions cannot match the display clock; display pacing removes that.
 
 **Evidence.**
 - `pc/src/boot_window.c`: `pc_window_tick` (deadline pacing), `pc_window_wait_fraction`,
-  `pc_window_present_rate`, `display_rate`.
+  `pc_window_present_rate`, `display_rate`, `pc_present_pacing`, the vblank grid and `present_display_images`
+  (display pacing); `present_pacing_smoke` checks 90, 144 and a varying 90 Hz.
 - `pc/src/boot_runtime.c`: `tick_frame_work` (the extra presents at fractions).
 - `pc/src/gpu_hw.c`: `pc_hw_interpolate = 1`, `pc_present_rate = 1`.
 - `pc/docs/Native_Rendering.md`, "Animation in-betweens": the animation system has no fractional time;
   characters change once per game frame.
 
-**Status.** Partly native: the in-betweens are real, but the simulation underneath is PS1-rate and the
-host's presentation clock is derived from it.
+**Status.** Partly native: the in-betweens are real and, with display pacing, placed on the display's own
+clock; the simulation underneath is PS1-rate. Display pacing is not yet the default.
 
-**To replace.** Large for a true unlocked frame rate: present on the display's clock, from real time
-since a frame arrived, with a vsync-aware swap (the doc's own list; `Native_Rendering.md` end). A higher
+**To replace.** Presenting on the display's clock is built (display pacing); what remains for smooth
+motion is the packet-drawn list above, which needs those things drawn as objects (T4, T8) or natively
+animated. A higher
 simulation rate would be much larger, because the game's logic counts ticks (animation, AI, timers) and
 nothing here makes them fractional.
 

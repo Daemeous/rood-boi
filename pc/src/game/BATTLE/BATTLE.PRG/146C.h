@@ -5,36 +5,10 @@
 #include "scratch.h"
 #include "pc/src/psx_types.h"
 
-/* The ZUD file (an enemy's package, loaded by the zone's enemy table and by the ENEMY menu): a 0x30-byte header, then the parts
- * it names by byte offset from the file's start. The header is read in one place, vs_zud_decode (146C.c; the layout below is the
- * whole format); the parts stay raw in the file's buffer, where the object loader (vs_battle_populateDataSlot) reads them, and the
- * decoded form holds a pointer to each.
- *
- *   +0x00 u8 characterId, weapon, weaponCategory, weaponMaterial, shield, shieldMaterial, defaultMaterial, (pad)
- *   +0x08 u32 offset, i32 size of each part, in this order: shp (the model), weaponWep, shieldWep, commonSeq, battleSeq
- */
-typedef struct {
-    void* data;
-    int size;
-} vs_zud_part;
-
-typedef struct {
-    u_char characterId;
-    u_char weapon;
-    u_char weaponCategory;
-    u_char weaponMaterial;
-    u_char shield;
-    u_char shieldMaterial;
-    u_char defaultMaterial;
-    vs_zud_part shp;
-    vs_zud_part weaponWep;
-    vs_zud_part shieldWep;
-    vs_zud_part commonSeq;
-    vs_zud_part battleSeq;
-} vs_zud_file;
-
-/* Reads the header of the ZUD file at `file` into `out`: each part's pointer is the file's address plus its offset. */
-void vs_zud_decode(vs_zud_file* out, const void* file);
+/* The ZUD file (an enemy's package): pc_nm_zud and pc_nm_zud_decode (pc/src/native_model/native_model_formats.h). */
+#include "pc/src/native_model/native_model_formats.h"
+/* a part of a file: a pointer into its buffer and a size (the MPD and ZND headers below use it too) */
+typedef pc_nm_zud_part vs_zud_part;
 
 /* The MPD file (a room): a 0x30-byte header of six sections, each a byte offset from the file's start and a length, then the
  * sections. vs_mpd_decode (146C.c) reads it once; the sections stay raw in the file's buffer (each loader copies or reads

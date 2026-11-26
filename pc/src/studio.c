@@ -201,8 +201,8 @@ int pc_studio_scene(const pc_studio_scene_cfg* c, pc_studio_scene_out* out)
             return -1;
         }
     } else if (c->kind == PC_STUDIO_ZUD) {
-        vs_zud_file zud;
-        vs_zud_decode(&zud, file);
+        pc_nm_zud zud;
+        pc_nm_zud_decode(&zud, file);
         if (!zud.shp.data || zud.shp.size < 0x100) {
             snprintf(out->message, sizeof out->message, "the ZUD holds no model");
             return -1;

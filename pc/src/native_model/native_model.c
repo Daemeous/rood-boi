@@ -137,6 +137,48 @@ static int decode_model(const uint8_t* model, size_t size, int bones, const uint
     return 0;
 }
 
+void pc_nm_shp_layout(const unsigned char* file, pc_nm_shp_parts* out)
+{
+    out->n_bones = (int)u32_at(file + 4);
+    out->n_quads = (int)u32_at(file + 8);
+    out->overlays = file + 0xC;
+    out->model_size = (int)u32_at(file + 0xF4);
+    out->model = file + 0xF8;
+    out->seq = out->model + (unsigned)out->model_size;
+    unsigned seq_length = u32_at(out->seq + 4);
+    const unsigned char* block = out->seq + 8 + seq_length;
+    out->texture_block_size = (int)u32_at(block);
+    const unsigned char* body = block + 4;
+    if (out->texture_block_size == 4) {
+        out->shared_model_id = (int)u32_at(body);
+        out->flags = 0, out->width = out->height = 0, out->clut_count = 0;
+        out->cluts = out->texture = body;
+    } else {
+        out->shared_model_id = 0;
+        out->flags = body[0];
+        out->width = body[1] * 2, out->height = body[2] * 2;
+        out->clut_count = body[3];
+        out->cluts = body + 4;
+        out->texture = out->cluts + (size_t)out->clut_count * 4;
+    }
+}
+
+static pc_nm_zud_part zud_part(const unsigned char* base, int index)
+{
+    const unsigned char* word = base + 8 + 8 * index;
+    pc_nm_zud_part part = { (void*)(base + u32_at(word)), (int)u32_at(word + 4) };
+    return part;
+}
+
+void pc_nm_zud_decode(pc_nm_zud* out, const void* file)
+{
+    const unsigned char* base = file;
+    out->characterId = base[0], out->weapon = base[1], out->weaponCategory = base[2], out->weaponMaterial = base[3];
+    out->shield = base[4], out->shieldMaterial = base[5], out->defaultMaterial = base[6];
+    out->shp = zud_part(base, 0), out->weaponWep = zud_part(base, 1), out->shieldWep = zud_part(base, 2);
+    out->commonSeq = zud_part(base, 3), out->battleSeq = zud_part(base, 4);
+}
+
 int pc_nm_shp_decode(const uint8_t* file, size_t size, pc_nm_model* out, char* err, size_t err_size)
 {
     memset(out, 0, sizeof *out);
@@ -152,43 +194,58 @@ int pc_nm_shp_decode(const uint8_t* file, size_t size, pc_nm_model* out, char* e
         return -1;
     }
     memcpy(out->overlays, file + 0xC, sizeof out->overlays);
-    const uint8_t* seq = model + model_size;
-    unsigned seq_length = u32_at(seq + 4);
-    if ((size_t)(seq - file) + 8 + seq_length + 4 > size) {
+    pc_nm_shp_parts lay;
+    pc_nm_shp_layout(file, &lay);
+    unsigned seq_length = u32_at(lay.seq + 4);
+    if ((size_t)(lay.seq - file) + 8 + seq_length + 4 > size) {
         pc_nm_free(out);
         return fail(err, err_size, "SHP sequence block");
     }
     out->sequence = malloc(seq_length ? seq_length : 1);
-    memcpy(out->sequence, seq + 8, seq_length);
+    memcpy(out->sequence, lay.seq + 8, seq_length);
     out->sequence_size = seq_length;
-    out->sequence_head = seq[0];
-    const uint8_t* block = seq + 8 + seq_length;
-    unsigned block_size = u32_at(block);
-    const uint8_t* body = block + 4;
-    size_t left = size - (size_t)(body - file);
-    if (block_size == 4) {
-        out->shared_model = (int)u32_at(body);
+    out->sequence_head = lay.seq[0];
+    if (lay.texture_block_size == 4) {
+        out->shared_model = lay.shared_model_id;
         return 0;
     }
-    if (left < 4) {
+    const uint8_t* body = lay.cluts - 4;
+    if ((size_t)(body - file) + 4 > size) {
         pc_nm_free(out);
         return fail(err, err_size, "SHP texture block");
     }
-    out->eight_bit = body[0] & 1;
-    out->texture_width = body[1] * 2;
-    out->texture_height = body[2] * 2;
-    out->colours = body[3];
+    out->eight_bit = lay.flags & 1;
+    out->texture_width = lay.width;
+    out->texture_height = lay.height;
+    out->colours = lay.clut_count;
     size_t palette_bytes = (size_t)out->colours * 4, texel_bytes = (size_t)out->texture_width * (size_t)out->texture_height;
-    if (4 + palette_bytes + texel_bytes > left) {
+    if ((size_t)(body - file) + 4 + palette_bytes + texel_bytes > size) {
         pc_nm_free(out);
         return fail(err, err_size, "SHP texture past the file");
     }
     out->palette = malloc(palette_bytes ? palette_bytes : 2);
-    memcpy(out->palette, body + 4, palette_bytes);
+    memcpy(out->palette, lay.cluts, palette_bytes);
     out->texels = malloc(texel_bytes ? texel_bytes : 1);
-    memcpy(out->texels, body + 4 + palette_bytes, texel_bytes);
+    memcpy(out->texels, lay.texture, texel_bytes);
     out->has_texture = 1;
     return 0;
+}
+
+void pc_nm_wep_layout(const uint8_t* file, pc_nm_wep_parts* out)
+{
+    out->n_bones = (int)u32_at(file + 4);
+    out->n_quads = (int)u32_at(file + 8);
+    out->offsets_size = u32_at(file + 0xC);
+    out->offsets = file + 0x10;
+    const uint8_t* after = file + 0x10 + out->offsets_size;
+    out->tex_width = (unsigned)after[5] * 2u;
+    out->palette_size = after[7];
+    out->first_palette_bytes = out->palette_size == 96 ? 64 : 32;
+    out->palette_bytes = out->palette_size == 96 ? 128 : 64;
+    out->palette_first = after + 8;
+    out->palettes = out->palette_first + out->first_palette_bytes;
+    out->texture = out->palettes + 7 * (size_t)out->palette_bytes;
+    out->bone_info = out->texture + (size_t)out->tex_width * 32;
 }
 
 int pc_nm_wep_decode(const uint8_t* file, size_t size, pc_nm_model* out, char* err, size_t err_size)
@@ -205,29 +262,28 @@ int pc_nm_wep_decode(const uint8_t* file, size_t size, pc_nm_model* out, char* e
         pc_nm_free(out);
         return -1;
     }
-    const uint8_t* after = file + 0x10 + offsets_size;
-    out->texture_width = (int)(after[5] * 2u);
+    pc_nm_wep_parts lay;
+    pc_nm_wep_layout(file, &lay);
+    out->texture_width = (int)lay.tex_width;
     out->texture_height = 32;
     out->eight_bit = 1;
-    int double_palette = after[7] == 96;
-    out->wep_first_palette_bytes = double_palette ? 64 : 32;
-    out->wep_palette_bytes = double_palette ? 128 : 64;
+    out->wep_first_palette_bytes = lay.first_palette_bytes;
+    out->wep_palette_bytes = lay.palette_bytes;
     out->palettes_wep = 7;
-    size_t need = 8 + out->wep_first_palette_bytes + 7 * (size_t)out->wep_palette_bytes + (size_t)out->texture_width * 32 + 8u * (unsigned)out->bones;
-    if ((size_t)(after - file) + need > size) {
+    size_t need = (size_t)(lay.bone_info - file) + 8u * (unsigned)out->bones;
+    if (need > size) {
         pc_nm_free(out);
         return fail(err, err_size, "WEP palettes and texture past the file");
     }
-    out->colours = (int)(out->wep_first_palette_bytes / 2);
-    out->palette = malloc(out->wep_first_palette_bytes);
-    memcpy(out->palette, after + 8, out->wep_first_palette_bytes);
-    out->wep_palettes = malloc(7 * (size_t)out->wep_palette_bytes);
-    memcpy(out->wep_palettes, after + 8 + out->wep_first_palette_bytes, 7 * (size_t)out->wep_palette_bytes);
-    const uint8_t* texture = after + 8 + out->wep_first_palette_bytes + 7 * out->wep_palette_bytes;
-    out->texels = malloc((size_t)out->texture_width * 32);
-    memcpy(out->texels, texture, (size_t)out->texture_width * 32);
+    out->colours = (int)(lay.first_palette_bytes / 2);
+    out->palette = malloc(lay.first_palette_bytes);
+    memcpy(out->palette, lay.palette_first, lay.first_palette_bytes);
+    out->wep_palettes = malloc(7 * (size_t)lay.palette_bytes);
+    memcpy(out->wep_palettes, lay.palettes, 7 * (size_t)lay.palette_bytes);
+    out->texels = malloc((size_t)lay.tex_width * 32);
+    memcpy(out->texels, lay.texture, (size_t)lay.tex_width * 32);
     out->bone_info = malloc(8u * (unsigned)(out->bones ? out->bones : 1));
-    memcpy(out->bone_info, texture + (size_t)out->texture_width * 32, 8u * (unsigned)out->bones);
+    memcpy(out->bone_info, lay.bone_info, 8u * (unsigned)out->bones);
     out->has_texture = 1;
     return 0;
 }
@@ -251,18 +307,16 @@ uint64_t pc_nm_content_key(const pc_nm_model* m, int u_add, int v_add)
     return key;
 }
 
-/* The records with a texture slot's rows added to every texture coordinate (the loaders' fix-up). */
-static uint32_t* fixed_records(const pc_nm_model* m, int u_add, int v_add)
+/* The records' texture coordinates with a texture slot's columns and rows added (the loaders' fix-up), in place. `counts`: triangles, quads, others. */
+static void fix_words(uint32_t* r, const int counts[3], int kind, int u_add, int v_add)
 {
-    uint32_t* r = malloc((m->record_words ? m->record_words : 1) * 4u);
-    memcpy(r, m->records, (size_t)m->record_words * 4);
     unsigned at = 0;
     for (int section = 0; section < 3; section++)
-        for (int face = 0; face < m->counts[section]; face++) {
+        for (int face = 0; face < counts[section]; face++) {
             int quad;
             unsigned words;
             int lane_word[4], lane_half[4], lanes;
-            if (m->kind == PC_NM_FLAT) {
+            if (kind == PC_NM_FLAT) {
                 quad = section == 1 || (section == 2 && (r[at] & 255) == 0x2c);
                 words = quad ? 5 : 4;
                 lane_word[0] = 3, lane_half[0] = 0, lane_word[1] = 3, lane_half[1] = 1;
@@ -289,6 +343,19 @@ static uint32_t* fixed_records(const pc_nm_model* m, int u_add, int v_add)
             }
             at += words;
         }
+}
+
+void pc_nm_fix_records(void* records, int triangles, int quads, int others, int kind, int u_add, int v_add)
+{
+    int counts[3] = { triangles, quads, others };
+    fix_words(records, counts, kind, u_add, v_add);
+}
+
+static uint32_t* fixed_records(const pc_nm_model* m, int u_add, int v_add)
+{
+    uint32_t* r = malloc((m->record_words ? m->record_words : 1) * 4u);
+    memcpy(r, m->records, (size_t)m->record_words * 4);
+    fix_words(r, m->counts, m->kind, u_add, v_add);
     return r;
 }
 
@@ -553,21 +620,21 @@ int pc_nm_list_animations(const pc_nm_model* m, const pc_nm_table* common, const
     return n;
 }
 
-/* One track: the first vector and the packets of frame deltas after it (vs_actors_decodeAnimationTrack, a frame at a time). */
-typedef struct {
-    const uint8_t* stream; /* the track's bytes to the end of the table */
-    unsigned length;
-    unsigned pos;
-    int next;              /* the frame the current delta lasts to */
-    int16_t delta[3], val[3];
-    int live;              /* it has packets to read */
-    int ended;
-} track_t;
+/* One track: the first vector and the packets of frame deltas after it (vs_actors_decodeAnimationTrack, a frame at a time; pc_nm_track in the header). */
+typedef pc_nm_track track_t;
 
 static int s16_at(const track_t* t, unsigned at) { return at + 1 < t->length ? (int)(int8_t)t->stream[at] << 8 | t->stream[at + 1] : 0; }
 
+const unsigned char* pc_nm_table_data(const unsigned char* table) { return table + u32_at(table); }
+
+void pc_nm_initial_vector(const unsigned char* at, short out[3])
+{
+    for (int k = 0; k < 3; k++)
+        out[k] = (short)(((at[2 * k] << 8) | at[2 * k + 1]) * 2);
+}
+
 /* Apply frame `frame`'s step: read packets until the delta covers it, then add it (`rotation`: the turns keep 13 bits). */
-static void track_step(track_t* t, int frame, int rotation)
+void pc_nm_track_step(track_t* t, int frame, int rotation)
 {
     if (!t->live || t->ended)
         return;
@@ -761,11 +828,11 @@ void pc_nm_anim_pose(pc_nm_anim* a, int time, pc_nm_pose* pose)
         anim_reset(a);
     /* the actor's frame counter is `time`: frames 1 .. time - 1 have been decoded */
     for (int frame = a->time > 1 ? a->time : 1; frame <= time - 1; frame++) {
-        track_step(&a->root, frame, 0);
+        pc_nm_track_step(&a->root, frame, 0);
         for (int i = 0; i < a->bones; i++) {
-            track_step(&a->bone[i], frame, 1);
+            pc_nm_track_step(&a->bone[i], frame, 1);
             if (a->scale_live[i])
-                track_step(&a->scale[i], frame, 0);
+                pc_nm_track_step(&a->scale[i], frame, 0);
         }
     }
     if (time > a->time)
@@ -823,4 +890,30 @@ int pc_nm_pose_rest(const pc_nm_model* m, pc_nm_pose* pose)
     pc_nm_anim_pose(a, 1, pose);
     pc_nm_anim_close(a);
     return 0;
+}
+
+void pc_nm_seq_block_at(const unsigned char* at, pc_nm_seq_block* out)
+{
+    out->head = at[0];
+    out->bones = (unsigned short)u16_at(at + 2);
+    out->size = (int)u32_at(at + 4);
+    out->data = at + 8;
+}
+
+void pc_nm_seq_shared_at(const unsigned char* at, pc_nm_seq_shared* out)
+{
+    out->count = (int)u32_at(at);
+    out->base = at;
+}
+unsigned short pc_nm_seq_shared_id(const pc_nm_seq_shared* set, int i) { return (unsigned short)u16_at(set->base + 4 + (unsigned)i * 4); }
+unsigned short pc_nm_seq_shared_key(const pc_nm_seq_shared* set, int i) { return (unsigned short)u16_at(set->base + 4 + ((unsigned)set->count + (unsigned)i) * 4); }
+unsigned pc_nm_seq_shared_offset(const pc_nm_seq_shared* set, int i) { return u32_at(set->base + 4 + (2u * (unsigned)set->count + (unsigned)i) * 4); }
+const unsigned char* pc_nm_seq_shared_streams(const pc_nm_seq_shared* set) { return set->base + 4 + 12u * (unsigned)set->count; }
+
+int pc_nm_table_record(const unsigned char* table, int bones, int idx, int* record)
+{
+    const unsigned char* index = table + u32_at(table + 4);
+    int r = index[idx];
+    *record = r;
+    return r == 0xff ? -1 : 8 + (bones * 4 + 10) * r;
 }

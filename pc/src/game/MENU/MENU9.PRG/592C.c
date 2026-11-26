@@ -183,7 +183,7 @@ void vs_menu9_loadZudFile(int id)
 int vs_menu9_parseZudFile(void)
 {
     vs_battle_objectData slot;
-    vs_zud_file zud;
+    pc_nm_zud zud;
 
     if (_zudCdSlot != NULL) {
         if (_zudCdSlot->state != vs_main_CdQueueStateLoaded) {
@@ -193,7 +193,7 @@ int vs_menu9_parseZudFile(void)
         vs_main_freeCdQueueSlot(_zudCdSlot);
         _zudCdSlot = NULL;
 
-        vs_zud_decode(&zud, _zudData);
+        pc_nm_zud_decode(&zud, _zudData);
 
         slot.dataType = 2;
         slot.index = 1;

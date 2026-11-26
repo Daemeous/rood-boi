@@ -100,7 +100,6 @@ extern void pc_hw_line(int, int, int, int, unsigned, unsigned, int, unsigned, co
 /* Native VRAM is about to be read here: copy back what only the hardware
  * target has (gpu_hw.c; absent in unit probes). */
 extern void pc_hw_sync(int, int, int, int) __attribute__((weak));
-extern void pc_hw_sync_store(int, int, int, int) __attribute__((weak));
 extern void pc_hw_sync_texture(unsigned, unsigned, unsigned, int, int, int, int, const int*) __attribute__((weak));
 extern void pc_hw_stale_copy(int, int, int, int, int, int) __attribute__((weak));
 /* What a VRAM write replaces, kept for frame interpolation (gpu_hw.c). */
@@ -567,7 +566,17 @@ int pc_vram_stream_json(char* out, int size)
     }
     return n;
 }
-void pc_vram_transfer(int x, int y, int w, int h, void* data, int write)
+extern int pc_hwr_area_stale(int x, int y, int w, int h) __attribute__((weak)); /* hw_registry.c */
+/* ROOD_SYNC_DEBUG: a read of a "transfer area" that the producer's stale set says a primitive drew into (the premise of pc_vram_read_area: none does). */
+static void transfer_area_check(int x, int y, int w, int h)
+{
+    static int debug __attribute__((section(".data.rood_host"))) = -1; /* host setting: not saved state */
+    if (debug < 0)
+        debug = getenv("ROOD_SYNC_DEBUG") != NULL;
+    if (debug && pc_hwr_area_stale && pc_hwr_area_stale(x, y, w, h))
+        fprintf(stderr, "[sync] a transfer-area read %d,%d %dx%d meets a stale (drawn) cell\n", x, y, w, h);
+}
+static void vram_transfer(int x, int y, int w, int h, void* data, int write, int fenced)
 {
     if (x < 0 || y < 0 || w < 0 || h < 0 || x + w > 1024 || y + h > 512) {
         fprintf(stderr, "VRAM transfer: %d,%d %dx%d\n", x, y, w, h);
@@ -576,9 +585,11 @@ void pc_vram_transfer(int x, int y, int w, int h, void* data, int write)
     stream_event(write ? 1 : 2, x, y, w, h, write ? data : NULL, write ? (size_t)w * (size_t)h * 2 : 0);
     if (write)
         vcheck_write(x, y, w, h, data, 1, NULL);
-    if (!write && pc_hw_sync_store) {
+    if (!write && !fenced)
+        transfer_area_check(x, y, w, h);
+    if (!write && fenced && pc_hw_sync) {
         int before = fence_syncs();
-        pc_hwc_fence_store(x, y, w, h); /* StoreImage: the renderer has everything before it, and the pixels are in VRAM when it returns */
+        pc_hwc_fence_sync(x, y, w, h); /* a read of the frame: the renderer has everything before it, and the target's pixels of exactly this rectangle are in VRAM when it returns */
         fence_event(1, before, x, y, w, h);
     }
     if (write && pc_hw_before_write) {
@@ -597,6 +608,11 @@ void pc_vram_transfer(int x, int y, int w, int h, void* data, int write)
         pc_hwc_vram_upload(x, y, w, h);
     }
 }
+/* Every VRAM transfer the game makes: an upload (write), or a read of the frame (StoreImage of what the renderer drew: the target's pixels are read back into the game's array
+ * first), as it always was. */
+void pc_vram_transfer(int x, int y, int w, int h, void* data, int write) { vram_transfer(x, y, w, h, data, write, 1); }
+/* A read of an area no primitive draws into (a CLUT row, a menu strip the game uploaded): the game's array holds it exactly, so nothing is fetched from the renderer. */
+void pc_vram_read_area(int x, int y, int w, int h, void* data) { vram_transfer(x, y, w, h, data, 0, 0); }
 /* GPU fill (GP0 0x02) as the hardware does it: x is rounded down to 16
  * pixels, the width rounded up to 16, both wrapped to VRAM (1024 x 512).
  * Out-of-range requests are logged once, not rejected. */

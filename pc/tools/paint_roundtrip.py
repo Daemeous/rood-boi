@@ -522,7 +522,7 @@ def export_package(args):
                 rgba = np.frombuffer(__import__("base64").b64decode(got["rgba"]), np.uint8).reshape(h, w, 4).copy()
                 rgba_of[u["key"]] = rgba
                 textures[u["key"]] = {"w": w, "h": h, "box": u["box"], "tpage": u["tpage"], "clut": u["clut"], "entry": u.get("entry", "")}
-        state = game.state()
+        state = game.state() if args.target == "room" else None  # (a room's package names its zone and room; a model's needs no game: rood-studio has none)
     finally:
         if not live:
             material_rollout.kill(game)

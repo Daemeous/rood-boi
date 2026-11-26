@@ -96,8 +96,8 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
         psx.put(&zone.zudDiscRequest, null);
         zone.loadedZudIndexPlusOne = zudIndex +% 1;
     }
-    var zud: c.vs_zud_file = undefined;
-    c.vs_zud_decode(&zud, psx.get(zone.zudData));
+    var zud: c.pc_nm_zud = undefined;
+    c.pc_nm_zud_decode(&zud, psx.get(zone.zudData));
     object.dataType = 2;
     object.index = psx.conv(i8, id);
     object.dataAddr = @intFromPtr(zud.shp.data);

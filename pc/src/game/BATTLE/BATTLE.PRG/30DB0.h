@@ -79,3 +79,5 @@ int func_800A1178(int arg0, int arg1, MATRIX* arg2, u_long* arg3);
 int vs_actors_targetPoint(int, int, SVECTOR*, int);
 int func_800A13EC(int, int, int*, int);
 void vs_actors_restoreActorNeutralPose(int arg0);
+
+#include "pc/src/native_model/native_model_formats.h"

@@ -950,7 +950,12 @@ int pc_frame_lower(int index, unsigned words[3][16], int lengths[3])
 
 /* The items from `first` drawn at once, as one packet, by DrawPrim (the classic layer's recorder sees it, as it did
  * the packet a screen built by hand), then given back. */
-extern void DrawPrim(void* packet);
+extern void DrawPrim(void* packet) __attribute__((weak)); /* the game's: absent from rood-studio's own executable, which draws no packet */
+static void draw_prim(void* packet)
+{
+    if (DrawPrim)
+        DrawPrim(packet);
+}
 static unsigned immediate_packet[1 + 8 * 48];
 /* The packet of the items from `first`; `commands` (when not NULL) takes the primitive of item first + k as commands[k] (up to `room` of them). */
 static const unsigned* immediate_build(int first, const void** commands, int room)
@@ -979,7 +984,7 @@ void pc_frame_immediate_words(const unsigned* words, int n)
         n = 16;
     memcpy(packet + 1, words, (size_t)n * sizeof *words);
     packet[0] = (unsigned)n << 24;
-    DrawPrim(packet);
+    draw_prim(packet);
 }
 void pc_frame_immediate_run(int first)
 {
@@ -1001,14 +1006,14 @@ void pc_frame_immediate_run(int first)
         (void)last;
         immediate_packet[0] = (unsigned)words_n << 24;
         if (words_n)
-            DrawPrim(immediate_packet);
+            draw_prim(immediate_packet);
     }
     pc_frame_rewind(first);
 }
 void pc_frame_immediate(int first)
 {
     if (immediate_build(first, NULL, 0))
-        DrawPrim(immediate_packet);
+        draw_prim(immediate_packet);
     pc_frame_rewind(first);
 }
 

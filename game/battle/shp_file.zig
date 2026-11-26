@@ -1,4 +1,4 @@
-//! The actor shape file (SHP), decoded. The file is read in one place, here (the layout below is the whole format); parseShp
+//! The actor shape file (SHP), decoded. The file is read by native_model's pc_nm_shp_layout (the layout below is the whole format); parseShp
 //! works from this record instead of a cursor. The payload stays in the file's heap buffer, raw, where the model copy,
 //! the sequence loader and LoadImage want it: the record holds pointers into it. Nothing is kept between parseShp's two passes
 //! (the second pass only shifts polygons already copied), so the record is a value on the caller's stack, not an object of the
@@ -13,7 +13,7 @@
 //!            S == 4:  i32 id of a loaded actor that shares this one's texture (nothing else follows in the block)
 //!            else:    u8 flags (low bit: wide palette; high nibble: unk8_3), u8 width/2, u8 height/2, u8 palette colours C,
 //!                     C words of palettes, then width * height bytes of texture (width and height as the bytes times 2)
-const std = @import("std");
+const c = @import("c_30DB0");
 
 pub const ShpFile = struct {
     n_bones: c_int,
@@ -41,40 +41,24 @@ pub const ShpFile = struct {
     }
 };
 
-inline fn i32At(p: [*]const u8) c_int {
-    return @as(*align(1) const c_int, @ptrCast(p)).*;
-}
-
-/// Reads the file at `at` (its address in the buffer).
+/// Reads the file at `at` (its address in the buffer): the layout is native_model's (pc_nm_shp_layout, the one decoder rood-studio reads the same files with).
 pub fn decode(at: usize) ShpFile {
-    const base: [*]const u8 = @ptrFromInt(at);
-    var f: ShpFile = undefined;
-    f.n_bones = i32At(base + 4);
-    f.n_quads = i32At(base + 8);
-    f.overlays = base + 0xC;
-    f.model_size = i32At(base + 0xF4);
-    f.model = base + 0xF8;
-    f.seq = f.model + @as(usize, @as(u32, @bitCast(f.model_size)));
-    const seq_length = i32At(f.seq + 4);
-    const block = f.seq + 8 + @as(usize, @as(u32, @bitCast(seq_length)));
-    f.texture_block_size = i32At(block);
-    const body = block + 4;
-    if (f.texture_block_size == 4) {
-        f.shared_model_id = i32At(body);
-        f.flags = 0;
-        f.width = 0;
-        f.height = 0;
-        f.clut_count = 0;
-        f.cluts = body;
-        f.texture = body;
-    } else {
-        f.shared_model_id = 0;
-        f.flags = body[0];
-        f.width = @as(c_int, body[1]) * 2;
-        f.height = @as(c_int, body[2]) * 2;
-        f.clut_count = body[3];
-        f.cluts = body + 4;
-        f.texture = f.cluts + @as(usize, f.clut_count) * 4;
-    }
-    return f;
+    var parts: c.pc_nm_shp_parts = undefined;
+    c.pc_nm_shp_layout(@ptrFromInt(at), &parts);
+    return .{
+        .n_bones = parts.n_bones,
+        .n_quads = parts.n_quads,
+        .overlays = parts.overlays,
+        .model = parts.model,
+        .model_size = parts.model_size,
+        .seq = parts.seq,
+        .texture_block_size = parts.texture_block_size,
+        .shared_model_id = parts.shared_model_id,
+        .flags = parts.flags,
+        .width = parts.width,
+        .height = parts.height,
+        .clut_count = parts.clut_count,
+        .cluts = parts.cluts,
+        .texture = parts.texture,
+    };
 }

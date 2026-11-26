@@ -2,6 +2,7 @@
 const common = @import("common");
 const psx = common.psx;
 const v = @import("views_40564");
+const c = @import("c_40564");
 
 const Table = v.func_800AD494_t;
 
@@ -71,15 +72,15 @@ pub fn findAnimation(actor_: ?*anyopaque, animation: c_int, frames: [*c][*c]u16)
         return null;
     }
 
-    // unk4[idx]: a negative animation below 100 reads before the table, as the C does.
-    const index: [*]u8 = @as([*]u8, @ptrCast(p.?)) + p.?.indexOffset;
-    idx = psx.at(index, idx).*;
-    v.g.D_800F49DC().* = psx.conv(u8, idx);
+    // the animation's record in the table (native_model's pc_nm_table_record: a negative animation below 100 reads before the table, as the C does)
+    var record: c_int = undefined;
+    const at = c.pc_nm_table_record(@ptrCast(p.?), @as(c_int, actor.unk0.nBones), idx, &record);
+    v.g.D_800F49DC().* = psx.conv(u8, record);
 
-    if (idx == 0xFF) {
+    if (record == 0xFF) {
         frames.* = null;
     } else {
-        frames.* = psx.at(&p.?.unk8, ((@as(c_int, actor.unk0.nBones) *% 4 +% 10) *% idx) >> 1);
+        frames.* = @ptrCast(@alignCast(@as([*]u8, @ptrCast(p.?)) + @as(usize, @intCast(at))));
     }
     return @ptrCast(p.?);
 }

@@ -98,7 +98,18 @@ int LoadImage(RECT* r, u_long* p)
 /* Synchronous variant (waits for the GPU first); host transfers already are.
  * MENUE (Quick Manual) loads its pages with it. */
 int LoadImage2(RECT* r, u_long* p) { return LoadImage(r, p); }
-int StoreImage(RECT* r, u_long* p)
+/* The game's two kinds of VRAM read (what StoreImage was, split by what is read): a transfer area, which the game's array holds exactly, and the drawn frame, which the renderer
+ * reads back into it first. The three frame readers (TITLE's two title-picture rectangles, MENU5's map-background backup) call pc_frame_read; every other read is pc_vram_read. */
+extern void pc_vram_read_area(int, int, int, int, void*);
+int pc_vram_read(RECT* r, u_long* p)
+{
+    pc_store_image_debug(r->x, r->y, r->w, r->h, __builtin_return_address(0));
+    if (pc_classic_immediate_store)
+        pc_classic_immediate_store(r->x, r->y, r->w, r->h);
+    pc_vram_read_area(r->x, r->y, r->w, r->h, p);
+    return 0;
+}
+int pc_frame_read(RECT* r, u_long* p)
 {
     pc_store_image_debug(r->x, r->y, r->w, r->h, __builtin_return_address(0));
     if (pc_classic_immediate_store)
@@ -106,6 +117,8 @@ int StoreImage(RECT* r, u_long* p)
     pc_vram_transfer(r->x, r->y, r->w, r->h, p, 0);
     return 0;
 }
+/* The SDK's StoreImage, for the lifted PS1 code that still calls it: the frame read (the read-back first), as always. */
+int StoreImage(RECT* r, u_long* p) { return pc_frame_read(r, p); }
 int DrawSync(int mode)
 {
     (void)mode;

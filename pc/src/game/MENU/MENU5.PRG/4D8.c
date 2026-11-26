@@ -303,8 +303,8 @@ int vs_menu5_exec(u_char* state)
         (&menuBgBackRects[1])->w = 96;
         (&menuBgBackRects[1])->h = 240;
 
-        StoreImage(&menuBgBackRects[0], menuBgBackup);
-        StoreImage(&menuBgBackRects[1], menuBgBackup + 128);
+        pc_vram_read(&menuBgBackRects[0], menuBgBackup);
+        pc_frame_read(&menuBgBackRects[1], menuBgBackup + 128);
         _loadMapBackground(1);
 
         *state = 4;

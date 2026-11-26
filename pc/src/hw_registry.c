@@ -424,6 +424,11 @@ int pc_stale_meets(const uint32_t* cells, int x, int y, int w, int h)
     int box[4];
     return pc_stale_bbox(cells, x, y, w, h, box);
 }
+/* Whether the producer's stale set (a primitive drew there; the game's array lacks it) meets the rectangle. */
+int pc_hwr_area_stale(int x, int y, int w, int h)
+{
+    return pc_stale_meets(pc_hwr_stale.missing, x, y, w, h) || pc_stale_meets(pc_hwr_stale.placed, x, y, w, h);
+}
 void pc_stale_clear(uint32_t* cells, int x0, int y0, int x1, int y1)
 {
     for (int c = x0 >> 6; c <= (x1 - 1) >> 6 && c < 16; c++)

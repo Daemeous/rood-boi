@@ -1194,6 +1194,11 @@ for source, name in sources:
             pc_unit_statics(source, name, obj, pre, win_pre)
     objects.append(obj)
     game_objects.append(obj)
+def host_only_objects():
+    """The objects of rood-studio's own executable: every object that is not the game's (the game's C and Zig units, their tables and
+    glue). The host's units name a few game symbols; pc/src/rood_studio_host.c answers them."""
+    own = {"game_core.o", "function_tables.o", "plg_entries.o", "traps.o", "overlay_statics_table.o"}
+    return [o for o in objects if o not in game_objects and o.name not in own]
 # The host's own C (pc/src) declares what it calls: an implicit declaration returns int, which on a 64-bit build cuts a returned
 # pointer to 32 bits and sign-extends it (a missing <string.h> made strchr crash this way). GCC 14+ makes it an error, and the
 # decompiled game's -fpermissive above relaxes it for the game's C only; the host's is held to it.
@@ -2810,19 +2815,21 @@ if win:
     # other objects also hold weak references to it, ld can resolve the name to one of their
     # defaults (0) instead: the Room Browser's pc_room_warp_* and pc_rooms_* were all null.
     # Each such name gets a strong definition at its weak definition's address.
-    weak_defs, strong = {}, set()
-    for obj in [*objects, out / "traps.o", out / "overlay_statics_table.o"]:
-        for line in query([MINGW + "nm", str(twin(obj))]).splitlines():
-            parts = line.split()
-            if len(parts) != 3 or parts[1] not in "TDBR":
-                continue
-            weak = re.fullmatch(r"\.weak\.(\w+)\.\w+", parts[2])
-            if weak:
-                weak_defs.setdefault(weak.group(1), parts[2])
-            elif not parts[2].startswith("."):
-                strong.add(parts[2])
-    (out / "weak_defs.ld").write_text("".join(f'{name} = "{alias}";\n' for name, alias in
-                                              sorted(weak_defs.items()) if name not in strong))
+    def weak_defs_script(objs, path):
+        weak_defs, strong = {}, set()
+        for obj in objs:
+            for line in query([MINGW + "nm", str(twin(obj))]).splitlines():
+                parts = line.split()
+                if len(parts) != 3 or parts[1] not in "TDBR":
+                    continue
+                weak = re.fullmatch(r"\.weak\.(\w+)\.\w+", parts[2])
+                if weak:
+                    weak_defs.setdefault(weak.group(1), parts[2])
+                elif not parts[2].startswith("."):
+                    strong.add(parts[2])
+        path.write_text("".join(f'{name} = "{alias}";\n' for name, alias in sorted(weak_defs.items()) if name not in strong))
+
+    weak_defs_script([*objects, out / "traps.o", out / "overlay_statics_table.o"], out / "weak_defs.ld")
     exe = out / "rood.exe"
     run_long([
         MINGW_GXX,
@@ -2850,6 +2857,23 @@ if win:
         *[f"-l{n}" for n in WIN_SYSTEM_LIBS],
         "-o", str(exe),
     ], out / "link.rsp")
+    # rood-studio.exe: the host's objects alone (see the Linux link below: M4b)
+    studio_host = out / "rood_studio_host.o"
+    run(win_command(["gcc", *flags, *host_strict, "-c", "pc/src/rood_studio_host.c", "-o", str(studio_host)]))
+    studio_objects = [*host_only_objects(), studio_host]
+    weak_defs_script(studio_objects, out / "weak_defs_studio.ld")
+    run_long([
+        MINGW_GXX, "-static", "-mconsole", "-Wl,--image-base=0x400000", "-Wl,--disable-dynamicbase", "-Wl,--disable-high-entropy-va",
+        "-Wl,--gc-sections", "-Wl,--no-insert-timestamp",
+        subprocess.run([MINGW_GCC, "-print-file-name=binmode.o"], capture_output=True, text=True).stdout.strip(),
+        *[str(twin(o)) for o in studio_objects],
+        str(out / "weak_defs_studio.ld"),
+        str(win_sdl_library),
+        *(win_nrd["libraries"] if win_nrd else []),
+        *win_glslang_libraries,
+        *[f"-l{n}" for n in WIN_SYSTEM_LIBS],
+        "-o", str(out / "rood-studio.exe"),
+    ], out / "link_studio.rsp")
     print(f"Built {exe}: {len(assign)} data imports, {len(traps)} fail-fast function imports")
     # The linked objects, for pc/tools/decl_mismatch.py --windows (it reads their COFF twins)
     (out / "objects.txt").write_text("".join(f"{o.relative_to(root)}\n" for o in objects))
@@ -3013,6 +3037,17 @@ link = (
         str(out / ("rood_battle_probe" if battle else "rood_boot")),
     ]
 )
+# rood-studio as its own executable: the host's objects alone, no game unit, no tables that bind them (pc/docs/plans/2026-11-24-standalone-studio-design.md, M4b).
+# Not a symlink to the game's binary: a link left from before is replaced.
+if arch64:
+    studio_exe = out / "rood-studio"
+    if studio_exe.is_symlink() or studio_exe.exists():
+        studio_exe.unlink()
+    studio_host = out / "rood_studio_host.o"  # answers the game symbols the host's units name; only this executable has it
+    compile_object(["gcc", *flags, *host_strict, "-c", "pc/src/rood_studio_host.c", "-o", str(studio_host)], "pc/src/rood_studio_host.c")
+    run(["gcc", "-m64", "-no-pie", "-Wl,--gc-sections", *link_compress_flags, *[str(o) for o in host_only_objects()], str(studio_host), str(sdl_library),
+         *(nrd["libraries"] if nrd else []), *glslang_libraries, "-l:libstdc++.so.6", "-l:libgcc_s.so.1", "-lm", "-lpthread", "-ldl",
+         "-o", str(studio_exe)])
 # The link, for pc/tests/snapshot_resume_smoke.py (it relinks with the engine moved).
 (out / "link_command.json").write_text(json.dumps(link) + "\n")
 run(link)

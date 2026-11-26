@@ -103,7 +103,7 @@ static void _readImage(int xy, void* buffer, int wh)
 
     *(int*)&rect.x = xy;
     *(int*)&rect.w = wh;
-    StoreImage(&rect, buffer);
+    pc_vram_read(&rect, buffer);
     DrawSync(0);
 }
 
@@ -4044,14 +4044,14 @@ static void* _initMenu(int menuItem)
     p = vs_main_allocHeap(0x22380);
     offset = p + 160 * 64;
     setRECT(&rect, 192, 448, 160, 64);
-    StoreImage(&rect, offset);
+    pc_vram_read(&rect, offset);
     DrawSync(0);
     offset += 160 * 64 / sizeof(u_short);
     setRECT(&rect, 352, 448, 160, 64);
-    StoreImage(&rect, offset);
+    pc_vram_read(&rect, offset);
     DrawSync(0);
     setRECT(&rect, 678, 376, 180, 24);
-    StoreImage(&rect, offset + 160 * 64 * 3 / sizeof(u_short));
+    pc_frame_read(&rect, offset + 160 * 64 * 3 / sizeof(u_short));
     DrawSync(0);
     return p;
 }
@@ -4686,7 +4686,7 @@ int vs_title_exec(void)
         }
         VSync(0);
         setRECT(&rect, 688, 256, 160, 128);
-        StoreImage(&rect, menuData);
+        pc_frame_read(&rect, menuData);
         DrawSync(0);
         VSync(0);
         for (i = 32; i >= 0; i -= 4) {

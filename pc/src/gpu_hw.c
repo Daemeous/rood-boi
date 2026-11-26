@@ -4669,11 +4669,6 @@ static int vram_from_target(int replay_target, int x0, int y0, int x1, int y1)
     return done;
 }
 void pc_hw_sync(int x, int y, int w, int h) { PC_HW_METER(sync); sync_kinds(x, y, w, h, STALE_MISSING | STALE_PLACED); }
-/* StoreImage (boot_runtime.c): only what native VRAM lacks. */
-void pc_hw_sync_store(int x, int y, int w, int h)
-{ PC_HW_METER(sync_store);
-    sync_kinds(x, y, w, h, layout_enabled() ? STALE_MISSING : STALE_MISSING | STALE_PLACED);
-}
 static void sync_kinds(int x, int y, int w, int h, int kinds)
 {
     if (!pc_hw_active || !pc_stale_any(&cstale) || w <= 0 || h <= 0)

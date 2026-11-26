@@ -119,3 +119,25 @@ The host-only link (a second executable of the host units alone: the build scrip
 ## The picture does not depend on the machine
 
 A picture asked for (`--dump`) made `rood_studio_smoke` vary under load (a character's edges, 0.06% of the pixels on a quiet machine, 0.26% on a busy one). Cause: with `--fast` the game thread runs ahead of the presenter, so the number of images presented by a given frame (what the path tracer's history, the denoiser and the exposure follow) was the machine's, not the game's. rood-studio now waits for each frame's image to be presented before it makes the next when it is asked for a picture; the strict limits are back (0.2% for a character against the game's studio) and so is the turntable's 0.25 s step.
+
+## M4c: the game's loaders read through the native decoders
+
+One format at a time, each its own commit, each proven the same way: the studio's parity test, the model suites (animation, weapon slots, two-model enemy, port arena, menu models, texture animation), the old-binary against new-binary comparison (fight frames, casts, drops, every actor's state, audio, and the equipment/status/items/magic/arts/abilities menu model views), and the lint.
+
+- WEP: the game's loader takes the file's layout (counts, offsets, palettes, texture, bone info) and the polygon fix-up from native_model. No frame differs (0 of 120). No de-PS1 meter moved.
+- SHP, including the ZUD's: the same for the shape file; the ZUD part decoder is the native one and the game's own copy is deleted. 0 of 120 frames differ. No meter moved.
+- SEQ: sequence blocks, shared sets and the per-table animation record lookup are read by native_model; the Zig reader (seq_file) is deleted. 0 of 120 frames differ, menus identical. unnamed_field fell 11360 to 11359.
+
+The format knowledge now exists once, in native_model (shared with the game through a header with no includes). What is still shaped like the PS1: the guest-side animation track decode and the per-actor pose state, which read the animation streams in place. That is the next seam.
+
+## M4b: rood-studio is its own executable
+
+`pc/build/boot64/rood-studio` (and `pc/build/win64/rood-studio.exe`) is linked from the host's objects alone: no game unit, no function tables, no overlay statics, no trap table, no pinned snapshot layout. build_boot.py links it after the game's executable, from the same objects (every object that is not one of the game's). The host's units name 23 game symbols (a vsync, a few drawing helpers, the loaded room's blocks, some tables); `pc/src/rood_studio_host.c` answers them for this executable only: a vsync is the host's tick, the room is the block the studio shows, the game's tables are empty. The game's executable still hands over to the studio when started as `rood-studio` or with `--rood-studio`; that stays, since it costs nothing and the options are the same.
+
+Proof: rood_studio_smoke runs against the host-only executable (the same pictures within the same limits as against the game's studio, the poses, the paint bridge, the RPC) and studio_smoke and the game's lanes are unchanged. The executable is 79 MB with compressed debug information, against 88 MB for the game's.
+The zoom check in rood_studio_smoke now measures the model against a solid black backdrop: against the stage its height depended on how the lit stage looked that frame.
+
+## The pose-state step: one track stepper
+
+The packet format of an animation track (first vector, packets of frame deltas) is read in one place, native_model's `pc_nm_track_step`, with the track's state a plain struct (`pc_nm_track`: position in the stream, the frame the delta lasts to, the delta, the value). The studio's player and the game's actors both use it: the game's `vs_actors_decodeAnimationTrack` no longer reads the stream byte by byte; it fills a `pc_nm_track` from the actor's pose block, steps it over the frame range and stores the result back. The first vectors are read by `pc_nm_initial_vector`. The actor's pose block is unchanged (the position and frame still sit in the pad fields of the bone vectors, as the PS1 kept them, and only that one function maps between the two), so save states, rewind and the memory card are unaffected and need no new version. Moving the state out of the pad fields into their own native arrays would change the pose block's size and every copy of it (the blend, the restore, the weapon chain); it is left for the actor-state rewrite.
+No frame differs from the old binary (0 of 120, casts, drops, every actor's state, audio, the five menus' model views); lint: zig_raw_memory 563 to 561.

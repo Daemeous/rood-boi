@@ -93,7 +93,7 @@ void pc_hwc_upload_mode(int mode); /* what the next LoadImage is (widescreen.h P
 /* The VRAM hooks (T1 R1b): what the game's VRAM commands tell the renderer. before_write (what the write about to happen will replace,
  * for the write log) and stale_copy (a VRAM copy carries staleness) are records. The two read-backs are fences: they apply every
  * record, then run on the renderer and return when the rectangle's pixels are in the game's VRAM array (the game continues with
- * them): sync_store (StoreImage) and sync_texture (a sprite or polygon about to sample what only the GPU target holds). */
+ * them): a frame read (pc_frame_read, a capture) and sync_texture (a sprite or polygon about to sample what only the GPU target holds). */
 /* The VRAM events (T1 R4e): fill, upload (LoadImage) and copy carry the rectangle they leave in the game's array, so the renderer applies
  * them without reading the game's memory. Call them where pc_hw_fill, pc_hw_upload and pc_hw_copy were called. */
 void pc_hwc_vram_fill(int x, int y, int w, int h, int r, int g, int b);
@@ -101,7 +101,6 @@ void pc_hwc_vram_upload(int x, int y, int w, int h);
 void pc_hwc_vram_copy(int sx, int sy, int dx, int dy, int w, int h, int mask_set, int mask_check); /* (no pixels: the renderer applies the copy to its own VRAM) */
 void pc_hwc_before_write(int x, int y, int w, int h);
 void pc_hwc_stale_copy(int sx, int sy, int dx, int dy, int w, int h);
-void pc_hwc_fence_store(int x, int y, int w, int h);
 void pc_hwc_fence_sync(int x, int y, int w, int h); /* a capture: the rectangle of the display read back */
 void pc_hwc_resync_picture(const uint8_t* picture); /* pc_hwc_resync with a state file's picture of the target over it */
 int pc_hwc_capture_picture(uint8_t* rgba); /* the target's own pixels (RGBA8 1024 x 512): no state of the game or the renderer changes */

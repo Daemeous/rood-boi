@@ -20,7 +20,6 @@ if ((build)); then
     python3 pc/tools/build_boot.py --arch 64
 fi
 binary=pc/build/boot64/rood-studio
-[[ -e $binary ]] || ln -s rood_battle_probe "$binary"
 export ROOD_RENDERER="${ROOD_RENDERER:-vulkan}"
 if [[ "${ROOD_GPU:-}" != integrated && -e /proc/driver/nvidia/version ]]; then
     export __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia
