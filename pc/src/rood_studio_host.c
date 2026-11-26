@@ -77,3 +77,8 @@ void* const vs_overlay_slots[5] = {overlay_zero};
 void* vs_scratch[4];
 unsigned char vs_view[0x58];
 unsigned char vs_xform[0xA4];
+
+/* ---- the fight trace (fight_trace.c, callo) ---- */
+/* It reads the game's rand() counters (boot_sdk.c); the studio never starts a trace. */
+unsigned pc_rand_draws;
+unsigned pc_rand_state(void) { return 0; }
