@@ -798,11 +798,11 @@ void pc_fullscreen_mode_choose(const char* value)
 }
 const char* pc_fullscreen_mode_setting(void) { return mode_want; }
 
-/* settings present_pacing: 0 classic (the frame loop sleeps to 59.94 Hz deadlines, in-betweens at k/n of a field), 1 display (the
+/* settings present_pacing (default 1): 0 classic (the frame loop sleeps to 59.94 Hz deadlines, in-betweens at k/n of a field), 1 display (the
  * display's vblank paces the presents, the in-between's phase is the real time since the field began). The game's own stepping
  * is the same either way (deadlines). Display pacing needs the swap to wait for the refresh, so it turns the presenters' vsync
  * on; in fast mode (tests, no pacing) it does nothing. */
-int pc_present_pacing;
+int pc_present_pacing = 1; /* display pacing by default (T1 R5); 0 classic */
 static double sim_hz(void);
 int pc_vsync_get(void) { return vsync_on || (pc_present_pacing == 1 && !fast && sim_hz() <= 0); }
 void pc_vsync_set(int on) { vsync_on = on != 0; } /* the presenters follow at their next present */

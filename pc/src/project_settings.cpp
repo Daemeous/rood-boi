@@ -316,7 +316,7 @@ const Entry entries[] = {
     I("interp_uv", pc_interp_uv),
     I("present_rate", pc_present_rate),
     I("render_thread", pc_render_thread), // 0 off, 1 the renderer thread (lockstep: the game thread waits for each call; render_thread.h)
-    I("present_pacing", pc_present_pacing), // 0 classic (59.94 Hz deadlines), 1 display (the display's vblank, real-time phase)
+    I("present_pacing", pc_present_pacing), // 0 classic (59.94 Hz deadlines), 1 display (default) (the display's vblank, real-time phase)
     I("smooth_textures", pc_hw_texture_filter),
     I("ui_subpixel", pc_ui_subpixel),
     I("ui_outline_boost", pc_ui_outline_boost),

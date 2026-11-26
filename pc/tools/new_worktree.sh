@@ -7,6 +7,7 @@
 # creates .claude/worktrees/NAME (under the main checkout) on a new branch NAME
 # from BASE (default main), then
 #   - symlinks data/ and disks/ to the main checkout's (your game data: read only),
+#   - copies the tests' memory card (pc/build/test-card1.mcd),
 #   - copies build/, the decompilation's PS1 build (~85 MB; a copy because
 #     `make commit-check` regenerates it and Docker's mipsel ld cannot follow a
 #     symlink), when the main checkout has one,
@@ -20,7 +21,7 @@
 # removes it again.
 set -euo pipefail
 if [ $# -lt 1 ] || [ $# -gt 2 ] || [ "${1#-}" != "$1" ]; then
-    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
 fi
 name=$1 base=${2:-main}
@@ -44,6 +45,11 @@ for input in data disks; do
 done
 if [ -d "$main/build" ]; then
     cp -a "$main/build" "$dir/build"
+fi
+# The tests' memory card (made from your game data, never committed); save states are rebuilt per binary.
+if [ -f "$main/pc/build/test-card1.mcd" ]; then
+    mkdir -p "$dir/pc/build"
+    cp "$main/pc/build/test-card1.mcd" "$dir/pc/build/"
 fi
 touch -d '2000-01-01' "$dir/requirements.txt"
 touch "$dir/tools/.sysdeps"
